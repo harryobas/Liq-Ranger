@@ -1,0 +1,25 @@
+{
+  borrows(
+    first: 100, 
+    orderBy: timestamp,
+    orderDirection: desc,
+    where: {
+      amountUSD_gt: 15000,
+      asset_in: [
+        "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359" # USDC
+      ]
+    }
+  ) {
+    id
+    amount
+    asset {
+      id
+      symbol
+      decimals
+      name
+    }
+    account {
+      id
+    }
+  }
+}
