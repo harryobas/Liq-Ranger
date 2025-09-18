@@ -27,7 +27,7 @@ use crate::abi_bindings::{
     UiPoolDataProvider
 };
 
-use crate::utils::*;
+use crate::{constants, utils::*};
 
 pub struct AaveLiquidator<M: Middleware + 'static> {
     pub lending_pool: AaveV3Pool<M>,
@@ -145,7 +145,7 @@ async fn generate_liquidations(&self) -> Result<Vec<LiquidationCandidate>> {
             asset,
             collateral_asset,
             &self.dex,
-            U256::from(30)
+            U256::from(constants::SLIPPAGE_BPS)
         ).await?;
 
         if is_liquidation_profitable(debt_to_cover, min_amount_out) {
@@ -179,7 +179,7 @@ impl Liquidator for AaveLiquidator<SignerMiddleware<Provider<Ws>, LocalWallet>> 
         use tokio::sync::Semaphore;
         
         // Limit concurrency to 5 simultaneous liquidations
-        let concurrency_limit = 5;
+        let concurrency_limit = constants::CONCURRENCY_LIMIT;
         let sem = Arc::new(Semaphore::new(concurrency_limit));
 
         let mut handles = vec![];
@@ -188,6 +188,7 @@ impl Liquidator for AaveLiquidator<SignerMiddleware<Provider<Ws>, LocalWallet>> 
             let permit = sem.clone().acquire_owned().await?;
             let liquidator = self.flash_liquidator.clone();
             let liq = liq.clone(); // ensure LiquidationCandidate: Clone
+            let liq_data = create_aave_liquidation_calldata(&liq)?;
 
             let handle = tokio::spawn(async move {
                 let _permit = permit; // Hold the permit until task finishes

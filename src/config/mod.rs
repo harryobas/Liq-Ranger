@@ -15,9 +15,6 @@ pub static UIPOOL_DATA: Lazy<String> = Lazy::new(|| get_env_var(env::UIPOOL_DATA
 pub static POOL_ADDRESS_PROVIDER: Lazy<String> = Lazy::new(|| get_env_var(env::POOL_ADDRESS_PROVIDER_VAR));
 
 
-//pub const BORROWERS_QUERY: &str = include_str!("../borrowers.gql");
-
-
 fn get_env_var(var_name: &str) -> String {
      match std_env::var(var_name){
         Ok(val) if !val.is_empty() => val,

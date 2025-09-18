@@ -22,10 +22,11 @@ use models::LiquidationCommand;
 use liquidators::{Liquidator, aave_liquidator::AaveLiquidator};
 
 use crate::{
-    watch_list::aave_watch_list::AaveWatchList,
-     watch_list_updaters::aave_watch_list_updater::AaveWatchListUpdater,
-     config::aave_config::AaveConfig
-    };
+    abi_bindings::AaveV3Pool, 
+    config::aave_config::{AaveConfig}, 
+    watch_list::aave_watch_list::AaveWatchList, 
+    watch_list_updaters::aave_watch_list_updater::AaveWatchListUpdater
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -34,22 +35,30 @@ async fn main() -> anyhow::Result<()> {
 
     log::info!("Starting liquidation mining....");
 
-    let aave_config = Arc::new(AaveConfig::load()?);
+    let mut aave_config = AaveConfig::load()?;
 
     let ws = Ws::connect(aave_config.rpc_url.clone()).await?;
     let provider = Provider::new(ws);
 
     let client = Arc::new(
-        SignerMiddleware::new(provider, aave_config.private_key.clone())
+        SignerMiddleware::new(provider, aave_config.wallet.clone())
     );
 
-     let aave_watch_list = Arc::new(AaveWatchList::new());
+    let pool = Arc::new(
+        AaveV3Pool::new(aave_config.lending_pool, client.clone())
+    );
+
+    aave_config.populate_vdebt_tokens(&pool).await?;
+
+    let aave_config = Arc::new(aave_config);
+    let aave_watch_list = Arc::new(AaveWatchList::new());
      
     let aave_bot = AaveLiquidator::new(
         aave_config.clone(),
         client.clone(),
         aave_watch_list.clone()
     );
+    
 
     let aave_updater = AaveWatchListUpdater::new(
         aave_watch_list.clone(), 

@@ -24,7 +24,8 @@ impl WatchList<(Address, Address)> for AaveWatchList {
     async fn remove(&self, item: (Address, Address)) -> anyhow::Result<()> {
 
         let mut inner = self.inner.write().await;
-        if inner.remove(&item) {
+        if inner.contains(&item) {
+            inner.remove(&item);
             Ok(())
         }else {
             anyhow::bail!("Item {:?} not found in AaveWatchList", item)

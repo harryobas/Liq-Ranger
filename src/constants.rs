@@ -1,41 +1,24 @@
-use lazy_static::lazy_static;
-use std::env as std_env;
 
-lazy_static!{
-    pub static ref SUBGRAPH_URL: String = get_env_var(env::SUBGRAPH_URL_ENV_VAR);
-    pub static ref SUBGRAPH_API_KEY: String = get_env_var(env::SUBGRAPH_API_KEY_ENV_VAR);
-    pub static ref PRIVATE_KEY: String = get_env_var(env::PRIVATE_KEY_VAR);
-    pub static ref LENDING_POOL: String = get_env_var(env::LENDING_POOL_VAR);
-    pub static ref FLASH_LIQUIDATOR: String = get_env_var(env::FLASH_LIQUIDATOR_VAR);
-    pub static ref RPC_URL: String = get_env_var(env::RPC_URL_VAR);
-    pub static ref AAVE_ORACLE: String = get_env_var(env::AAVE_ORACLE_VAR);
-    pub static ref DEX_ROUTER: String = get_env_var(env::DEX_ROUTER_VAR);
-    pub static ref UIPOOL_DATA: String = get_env_var(env::UIPOOL_DATA_VAR);
-    pub static ref POOL_ADDRESS_PROVIDER: String = get_env_var(env::POOL_ADDRESS_PROVIDER_VAR);
+pub const BORROWERS_QUERY_AAVE: &str = include_str!("../borrowers.gql");
+pub const BORROWERS_QUERY_MORPHO: &str = include_str!("../collaterals.gql");
+pub const SLIPPAGE_BPS: u64 = 30;
+pub const CONCURRENCY_LIMIT: usize = 5;
+pub const CHAIN_ID: u64 = 137;
 
-}
-
-pub const BORROWERS_QUERY: &str = include_str!("../borrowers.gql");
-
-
-fn get_env_var(var_name: &str) -> String {
-     match std_env::var(var_name){
-        Ok(val) if !val.is_empty() => val,
-        Ok(_) => panic!("Enviroment variable {var_name} is set but empty"),
-        Err(_) => panic!("Enviroment variable {var_name} is not set"),
-     }
-}
-
-mod env {
-    pub const SUBGRAPH_URL_ENV_VAR: &str = "SUBGRAPH_URL";
-    pub const SUBGRAPH_API_KEY_ENV_VAR: &str = "SUBGRAPH_API_KEY";
-    pub const PRIVATE_KEY_VAR: &str = "PRIVATE_KEY";
-    pub const LENDING_POOL_VAR: &str = "LENDING_POOL";
-    pub const FLASH_LIQUIDATOR_VAR: &str = "FLASH_LIQUIDATOR";
-    pub const RPC_URL_VAR: &str = "RPC_URL";
-    pub const AAVE_ORACLE_VAR: &str = "AAVE_ORACLE";
-    pub const DEX_ROUTER_VAR: &str = "DEX_ROUTER";
-    pub const UIPOOL_DATA_VAR: &str = "UIPOOL_DATA";
-    pub const POOL_ADDRESS_PROVIDER_VAR: &str = "POOL_ADDRESS_PROVIDER";
-
-}
+pub const AAVE_RESERVES: [&str; 3] = [
+    "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", 
+    "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", 
+    "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063"
+    ];
+    
+pub const MORPHO_MARKETS: [&str; 9] = [
+    "0x1cfe584af3db05c7f39d60e458a87a8b2f6b5d8c6125631984ec489f1d13553b", 
+    "0x2476bb905e3d94acd7b402b3d70d411eeb6ace82afd3007da69a0d5904dfc998", 
+    "0xd1485762dd5256b99530b6b07ab9d20c8d31b605dd5f27ad0c6dec2a18179ac6", 
+    "0xa8c2e5b31d1f3fb6c000bd49355d091f71e7c866fcb74a1cb2562ef67157bc2a", 
+    "0x1947267c49c3629c5ed59c88c411e8cf28c4d2afdb5da046dc8e3846a4761794",
+    "0x7506b33817b57f686e37b87b5d4c5c93fdef4cffd21bbf9291f18b2f29ab0550",
+    "0x267f344f5af0d85e95f253a2f250985a9fb9fca34a3342299e20c83b6906fc80",
+    "0xa5b7ae7654d5041c28cb621ee93397394c7aee6c6e16c7e0fd030128d87ee1a3",
+    "0x41e537c46cc0e2f82aa69107cd72573f585602d8c33c9b440e08eaba5e8fded1"
+    ];

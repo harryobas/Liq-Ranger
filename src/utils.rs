@@ -1,7 +1,8 @@
 
 use ethers::{
+    abi::Token,
     providers::Middleware,
-    types::{Address, U256}
+    types::{Address, Bytes, U256}
 };
 use anyhow::{Result, anyhow};
 
@@ -15,7 +16,7 @@ use crate::{
     IERC20
 },  config::aave_config::AaveConfig, 
     constants, 
-    models::borrow::BorrowsData, 
+    models::{borrow::BorrowsData, liquidation::LiquidationCandidate}, 
     watch_list::{
         aave_watch_list::AaveWatchList,
         WatchList
@@ -204,7 +205,7 @@ pub fn is_liquidation_profitable(
 
 pub async fn aave_bootstrap_from_subgraph(watchlist: &AaveWatchList, config: &AaveConfig) -> Result<()> {
     let borrows_query = serde_json::json!({
-            "query": constants::BORROWERS_QUERY, 
+            "query": constants::BORROWERS_QUERY_AAVE, 
             "variables": serde_json::json!({})
         });
 
@@ -235,3 +236,17 @@ pub async fn aave_bootstrap_from_subgraph(watchlist: &AaveWatchList, config: &Aa
 Ok(())
 
 }
+
+pub fn create_aave_liquidation_calldata(liq: &LiquidationCandidate) -> Result<Bytes> {
+    let tokens = vec![
+        Token::Address(liq.collateral_asset),
+        Token::Address(liq.debt_asset),
+        Token::Address(liq.borrower),
+        Token::Uint(liq.debt_to_cover),
+        Token::Uint(liq.min_amount_out)
+    ];
+    let encoded = ethers::abi::encode(&tokens);
+    Ok(Bytes::from(encoded))
+    
+}
+
