@@ -22,3 +22,13 @@ pub const MORPHO_MARKETS: [&str; 9] = [
     "0xa5b7ae7654d5041c28cb621ee93397394c7aee6c6e16c7e0fd030128d87ee1a3",
     "0x41e537c46cc0e2f82aa69107cd72573f585602d8c33c9b440e08eaba5e8fded1"
     ];
+
+//health-check constants for morpho liquidator
+
+pub const VIRTUAL_ASSETS: u128 = 1;
+pub const VIRTUAL_SHARES: u128 = 1_000_000;
+pub const PRICE_DECIMALS: usize = 36;
+pub const RATIO_DECIMALS: usize = 18;
+pub const BPS_DECIMALS: u32 = 4;
+pub const MAX_BPS: u64 = 10_000; // 100% in BPS
+pub const CLOSE_FACTOR_BPS: u64 = 50000;

@@ -2,32 +2,27 @@ use super::Liquidator;
 
 use anyhow:: Result;
 use ethers::providers::Middleware;
-use ethers::types::{Address, U256};
+use ethers::types::{Address, Bytes, U256};
 use ethers::prelude::{SignerMiddleware, Provider, Ws, LocalWallet};
 use log;
 
-
 use crate::models::liquidation::LiquidationCandidate;
-
 
 use crate::{
     watch_list::{aave_watch_list::AaveWatchList, WatchList},
     config::aave_config::AaveConfig
 };
 
-
-
 use std::sync::Arc;
-use crate::abi_bindings::{
-    aave_v3_pool, 
+use crate::{abi_bindings::{
     AaveOracle, 
     AaveV3Pool, 
     Dex, 
     FlashLiquidator,
     UiPoolDataProvider
-};
+}, helpers::aave_helpers::*};
 
-use crate::{constants, utils::*};
+use crate::constants;
 
 pub struct AaveLiquidator<M: Middleware + 'static> {
     pub lending_pool: AaveV3Pool<M>,
@@ -79,7 +74,7 @@ impl<M: Middleware> AaveLiquidator<M> {
     }
 
 
-async fn generate_liquidations(&self) -> Result<Vec<LiquidationCandidate>> {
+async fn generate_liquidations(&self) -> Result<Vec<Bytes>> {
     let borrows = self.watch_list.snapshot().await?;
     let mut borrows_with_hf = vec![];
 
@@ -103,14 +98,11 @@ async fn generate_liquidations(&self) -> Result<Vec<LiquidationCandidate>> {
     let mut candidates = vec![];
 
     for (account, asset, health_factor) in borrows_with_hf {
-        let reserve_data: aave_v3_pool::ReserveData = self.lending_pool
-            .get_reserve_data(asset)
-            .call()
-            .await?;
-
-        let debt_token_addr: Address = reserve_data.variable_debt_token_address;
+        
+        let debt_token_addr: Address =  *self.config
+            .vdebt_tokens.get(&asset)
+            .ok_or_else(|| anyhow::anyhow!("Missing vDebt token for asset {:?}", asset))?;
     
-
         let debt_to_cover = get_debt_to_cover(
             debt_token_addr,
             account,
@@ -159,6 +151,17 @@ async fn generate_liquidations(&self) -> Result<Vec<LiquidationCandidate>> {
         }
     }
 
+    let candidates = candidates
+        .into_iter()
+        .map(|c|{ 
+            match create_aave_liquidation_calldata(&c){
+                Ok(calldata) => calldata,
+                Err(_) => Bytes::from([]),
+            }
+        })
+        .filter(|calldata| !calldata.is_empty())
+        .collect::<Vec<Bytes>>();
+
     Ok(candidates)
 }
 
@@ -166,7 +169,7 @@ async fn generate_liquidations(&self) -> Result<Vec<LiquidationCandidate>> {
 }
 
 #[async_trait::async_trait]
-impl Liquidator for AaveLiquidator<SignerMiddleware<Provider<Ws>, LocalWallet>> {
+impl Liquidator for AaveLiquidator<SignerMiddleware<Provider<Ws>, LocalWallet>>{
 
     async fn run(&self) -> Result<()> {
         let liquidations = self.generate_liquidations().await?;
@@ -176,70 +179,8 @@ impl Liquidator for AaveLiquidator<SignerMiddleware<Provider<Ws>, LocalWallet>> 
             return Ok(());
         }
 
-        use tokio::sync::Semaphore;
-        
-        // Limit concurrency to 5 simultaneous liquidations
-        let concurrency_limit = constants::CONCURRENCY_LIMIT;
-        let sem = Arc::new(Semaphore::new(concurrency_limit));
+        super::execute_flash_liquidation(liquidations, true, &self.flash_liquidator).await
 
-        let mut handles = vec![];
-
-        for liq in liquidations {
-            let permit = sem.clone().acquire_owned().await?;
-            let liquidator = self.flash_liquidator.clone();
-            let liq = liq.clone(); // ensure LiquidationCandidate: Clone
-            let liq_data = create_aave_liquidation_calldata(&liq)?;
-
-            let handle = tokio::spawn(async move {
-                let _permit = permit; // Hold the permit until task finishes
-
-                // Attempt liquidation with optional retry
-                for attempt in 1..=2 {
-                    match liquidator
-                        .execute_flash_liquidation(
-                            liq.collateral_asset,
-                            liq.debt_asset,
-                            liq.borrower,
-                            liq.debt_to_cover,
-                            liq.min_amount_out,
-                        )
-                        .send()
-                        .await
-                    {
-                        Ok(_) => {
-                            log::info!(
-                                "Successfully liquidated borrower {} (attempt {})",
-                                liq.borrower,
-                                attempt
-                            );
-                            break;
-                        }
-                        Err(e) => {
-                            log::error!(
-                                "Failed to liquidate borrower {} on attempt {}: {:?}",
-                                liq.borrower,
-                                attempt,
-                                e
-                            );
-                            if attempt == 2 {
-                                log::error!("Giving up on borrower {}", liq.borrower);
-                            } else {
-                                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                            }
-                        }
-                    }
-                }
-            });
-
-            handles.push(handle);
-        }
-
-        // Wait for all tasks to finish
-        for handle in handles {
-            let _ = handle.await;
-        }
-
-        Ok(())
     }
 }
 

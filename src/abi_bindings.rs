@@ -101,20 +101,28 @@ abigen!(
 
 abigen!(
     FlashLiquidator,
-    r#"[{
-        "inputs": [
-            { "internalType": "address", "name": "collateralAsset", "type": "address" },
-            { "internalType": "address", "name": "debtAsset", "type": "address" },
-            { "internalType": "address", "name": "user", "type": "address" },
-            { "internalType": "uint256", "name": "debtToCover", "type": "uint256" },
-            { "internalType": "uint256", "name": "MinimumAmountOut", "type": "uint256" }
-        ],
-        "name": "executeFlashLiquidation",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    }]"#
+    r#"[
+        {
+            "inputs": [
+                {
+                    "internalType": "bytes",
+                    "name": "liqData",
+                    "type": "bytes"
+                },
+                {
+                    "internalType": "bool",
+                    "name": "isAave",
+                    "type": "bool"
+                }
+            ],
+            "name": "executeFlashLiquidation",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        }
+    ]"#
 );
+
 
 abigen!(
     AaveOracle,
@@ -226,6 +234,91 @@ abigen!(
   }
     ]"#
 );
+
+abigen!(
+    IMorphoBlue,
+    r#"
+    [
+        {
+            "inputs": [
+                {"internalType": "bytes32", "name": "id", "type": "bytes32"},
+                {"internalType": "address", "name": "user", "type": "address"}
+            ],
+            "name": "position",
+            "outputs": [
+                {
+                    "components": [
+                        {"internalType": "uint256", "name": "supplyShares", "type": "uint256"},
+                        {"internalType": "uint128", "name": "borrowShares", "type": "uint128"},
+                        {"internalType": "uint128", "name": "collateral", "type": "uint128"}
+                    ],
+                    "internalType": "struct Position",
+                    "name": "p",
+                    "type": "tuple"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [{"internalType": "bytes32", "name": "id", "type": "bytes32"}],
+            "name": "market",
+            "outputs": [
+                {
+                    "components": [
+                        {"internalType": "uint128", "name": "totalSupplyAssets", "type": "uint128"},
+                        {"internalType": "uint128", "name": "totalSupplyShares", "type": "uint128"},
+                        {"internalType": "uint128", "name": "totalBorrowAssets", "type": "uint128"},
+                        {"internalType": "uint128", "name": "totalBorrowShares", "type": "uint128"},
+                        {"internalType": "uint128", "name": "lastUpdate", "type": "uint128"},
+                        {"internalType": "uint128", "name": "fee", "type": "uint128"}
+                    ],
+                    "internalType": "struct Market",
+                    "name": "m",
+                    "type": "tuple"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [{"internalType": "bytes32", "name": "id", "type": "bytes32"}],
+            "name": "idToMarketParams",
+            "outputs": [
+                {
+                    "components": [
+                        {"internalType": "address", "name": "loanToken", "type": "address"},
+                        {"internalType": "address", "name": "collateralToken", "type": "address"},
+                        {"internalType": "address", "name": "oracle", "type": "address"},
+                        {"internalType": "address", "name": "irm", "type": "address"},
+                        {"internalType": "uint256", "name": "lltv", "type": "uint256"}
+                    ],
+                    "internalType": "struct MarketParams",
+                    "name": "",
+                    "type": "tuple"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                {"indexed": true, "internalType": "bytes32", "name": "id", "type": "bytes32"},
+                {"indexed": false, "internalType": "address", "name": "caller", "type": "address"},
+                {"indexed": true, "internalType": "address", "name": "onBehalf", "type": "address"},
+                {"indexed": true, "internalType": "address", "name": "receiver", "type": "address"},
+                {"indexed": false, "internalType": "uint256", "name": "assets", "type": "uint256"},
+                {"indexed": false, "internalType": "uint256", "name": "shares", "type": "uint256"}
+            ],
+            "name": "Borrow",
+            "type": "event"
+        }
+    ]
+    "#,
+    event_derives(serde::Deserialize, serde::Serialize),
+);
+
 
 
 

@@ -1,4 +1,5 @@
 pub mod aave_config;
+pub mod morpho_config;
 
 use std::{env as std_env, process};
 use once_cell::sync::Lazy;
@@ -14,6 +15,7 @@ pub static DEX_ROUTER: Lazy<String> = Lazy::new(|| get_env_var(env::DEX_ROUTER_V
 pub static UIPOOL_DATA: Lazy<String> = Lazy::new(|| get_env_var(env::UIPOOL_DATA_VAR));
 pub static POOL_ADDRESS_PROVIDER: Lazy<String> = Lazy::new(|| get_env_var(env::POOL_ADDRESS_PROVIDER_VAR));
 
+pub static MORPHO_BLUE: Lazy<String> = Lazy::new(|| get_env_var(env::MORPHO_BLUE_VAR));
 
 fn get_env_var(var_name: &str) -> String {
      match std_env::var(var_name){
@@ -40,5 +42,14 @@ mod env {
     pub const DEX_ROUTER_VAR: &str = "DEX_ROUTER";
     pub const UIPOOL_DATA_VAR: &str = "UIPOOL_DATA";
     pub const POOL_ADDRESS_PROVIDER_VAR: &str = "POOL_ADDRESS_PROVIDER";
+    pub const MORPHO_BLUE_VAR: &str = "MORPHO_BLUE";
 
+}
+
+
+pub trait Config: Sync + Send {
+    type Instance: Config;
+    
+    fn load() -> anyhow::Result<Self::Instance>;
+     
 }

@@ -1,3 +1,6 @@
+
+
+
 pub mod aave_watch_list;
 pub mod morpho_watch_list;
 
@@ -7,3 +10,13 @@ pub trait WatchList<T>: Sync + Send {
      async fn add(&self, item: T) -> anyhow::Result<()>;
      async fn snapshot(&self) -> anyhow::Result<Vec<T>>;
 }
+
+
+#[async_trait::async_trait]
+pub trait SubgraphBootstrap<T>: Sync + Send {
+     async fn bootstrap_from_subgraph(
+          &self,
+          config: T
+    ) -> anyhow::Result<()>;
+}
+

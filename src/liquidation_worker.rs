@@ -30,12 +30,12 @@ impl LiquidationWorker {
 
                 LiquidationCommand::Shutdown => {
                     log::info!("worker shutting down......");
-                    break;
+                    return Ok(());
                 },
             }
 
         }
         log::warn!("Worker stopped because channel closed");
-        Ok(())
+        Err(anyhow::anyhow!("Worker stopped because command channel closed"))
     }
 }

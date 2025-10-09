@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use ethers::{providers::Middleware, signers::{LocalWallet, Signer}, types::Address};
 
-use crate::{abi_bindings::{aave_v3_pool, AaveV3Pool}, constants};
-use std::sync::Arc;
+use crate::{abi_bindings::{aave_v3_pool, AaveV3Pool}, config::Config, constants};
+
 
 #[derive(Debug, Clone)]
 pub struct AaveConfig {
@@ -23,7 +23,7 @@ pub struct AaveConfig {
 }
 
 impl AaveConfig  {
-    pub fn load() -> anyhow::Result<Self> {
+     fn load_config() -> anyhow::Result<Self> {
         let reserves: HashSet<Address> = constants::AAVE_RESERVES
             .into_iter()
             .map(|r|r.to_string().parse::<Address>().unwrap())
@@ -31,7 +31,7 @@ impl AaveConfig  {
     
 
         Ok(AaveConfig { 
-             wallet: super::PRIVATE_KEY.parse::<LocalWallet>()?, 
+             wallet: super::PRIVATE_KEY.parse::<LocalWallet>()?.with_chain_id(constants::CHAIN_ID), 
              lending_pool: super::LENDING_POOL.parse::<Address>()?, 
              aave_oracle: super::AAVE_ORACLE.parse::<Address>()?, 
              flash_liquidator: super::FLASH_LIQUIDATOR.parse::<Address>()?, 
@@ -63,5 +63,15 @@ impl AaveConfig  {
         Ok(())
 
 
+    }
+}
+
+impl Config for AaveConfig {
+
+    type Instance = Self;
+
+    fn load() -> anyhow::Result<Self::Instance> {
+        Self::load_config()
+        
     }
 }

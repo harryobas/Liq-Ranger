@@ -3,12 +3,12 @@ mod liquidators;
 mod models;
 mod constants;
 mod abi_bindings;
-mod utils;
 mod block_watcher;
 mod liquidation_worker;
 mod watch_list;
 mod watch_list_updaters;
 mod config;
+mod helpers;
 
 use std::sync::Arc;
 use dotenv::dotenv;
@@ -20,6 +20,7 @@ use ethers::{
 
 use models::LiquidationCommand;
 use liquidators::{Liquidator, aave_liquidator::AaveLiquidator};
+use config::Config;
 
 use crate::{
     abi_bindings::AaveV3Pool, 
@@ -101,3 +102,4 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
     
 }
+
