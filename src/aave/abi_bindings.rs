@@ -1,8 +1,7 @@
 use ethers::prelude::abigen;
 
-
 abigen!(
-    AaveV3Pool,
+    IAaveV3Pool,
     r#"[
   {
     "inputs": [
@@ -94,89 +93,24 @@ abigen!(
     ],
     "name": "Repay",
     "type": "event"
-  }
-]"#;
-);
-
-
-abigen!(
-    FlashLiquidator,
-    r#"[
-        {
-            "inputs": [
-                {
-                    "internalType": "bytes",
-                    "name": "liqData",
-                    "type": "bytes"
-                },
-                {
-                    "internalType": "bool",
-                    "name": "isAave",
-                    "type": "bool"
-                }
-            ],
-            "name": "executeFlashLiquidation",
-            "outputs": [],
-            "stateMutability": "nonpayable",
-            "type": "function"
-        }
-    ]"#
-);
-
-
-abigen!(
-    AaveOracle,
-    r#"[
-        {
-            "inputs": [{"internalType": "address", "name": "asset", "type": "address"}],
-            "name": "getAssetPrice",
-            "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-            "stateMutability": "view",
-            "type": "function"
-        }
-    ]"#
-
-);
-
-abigen!(
-    Dex,
-    r#"
-[
+  },
   {
-    "name": "getAmountsOut",
-    "type": "function",
-    "stateMutability": "view",
+    "anonymous": false,
     "inputs": [
-      {
-        "name": "amountIn",
-        "type": "uint256"
-      },
-      {
-        "name": "path",
-        "type": "address[]"
-      }
+      { "indexed": true, "internalType": "address", "name": "collateralAsset", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "debtAsset", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "user", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "debtToCover", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "liquidatedCollateralAmount", "type": "uint256" },
+      { "indexed": false, "internalType": "address", "name": "liquidator", "type": "address" },
+      { "indexed": false, "internalType": "bool", "name": "receiveAToken", "type": "bool" }
     ],
-    "outputs": [
-      {
-        "name": "amounts",
-        "type": "uint256[]"
-      }
-    ]
+    "name": "LiquidationCall",
+    "type": "event"
   }
-]
-"#;
+]"#
 );
 
-
-
-abigen!(
-    IERC20,
-    r#"[
-        function balanceOf(address account) external view returns (uint256)
-        function decimals() external view returns (uint8)
-        function symbol() external view returns (string)
-    ]"#
-);
 
 abigen!(
     UiPoolDataProvider,
@@ -236,92 +170,8 @@ abigen!(
 );
 
 abigen!(
-    IMorphoBlue,
-    r#"
-    [
-        {
-            "inputs": [
-                {"internalType": "bytes32", "name": "id", "type": "bytes32"},
-                {"internalType": "address", "name": "user", "type": "address"}
-            ],
-            "name": "position",
-            "outputs": [
-                {
-                    "components": [
-                        {"internalType": "uint256", "name": "supplyShares", "type": "uint256"},
-                        {"internalType": "uint128", "name": "borrowShares", "type": "uint128"},
-                        {"internalType": "uint128", "name": "collateral", "type": "uint128"}
-                    ],
-                    "internalType": "struct Position",
-                    "name": "p",
-                    "type": "tuple"
-                }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-        },
-        {
-            "inputs": [{"internalType": "bytes32", "name": "id", "type": "bytes32"}],
-            "name": "market",
-            "outputs": [
-                {
-                    "components": [
-                        {"internalType": "uint128", "name": "totalSupplyAssets", "type": "uint128"},
-                        {"internalType": "uint128", "name": "totalSupplyShares", "type": "uint128"},
-                        {"internalType": "uint128", "name": "totalBorrowAssets", "type": "uint128"},
-                        {"internalType": "uint128", "name": "totalBorrowShares", "type": "uint128"},
-                        {"internalType": "uint128", "name": "lastUpdate", "type": "uint128"},
-                        {"internalType": "uint128", "name": "fee", "type": "uint128"}
-                    ],
-                    "internalType": "struct Market",
-                    "name": "m",
-                    "type": "tuple"
-                }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-        },
-        {
-            "inputs": [{"internalType": "bytes32", "name": "id", "type": "bytes32"}],
-            "name": "idToMarketParams",
-            "outputs": [
-                {
-                    "components": [
-                        {"internalType": "address", "name": "loanToken", "type": "address"},
-                        {"internalType": "address", "name": "collateralToken", "type": "address"},
-                        {"internalType": "address", "name": "oracle", "type": "address"},
-                        {"internalType": "address", "name": "irm", "type": "address"},
-                        {"internalType": "uint256", "name": "lltv", "type": "uint256"}
-                    ],
-                    "internalType": "struct MarketParams",
-                    "name": "",
-                    "type": "tuple"
-                }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-        },
-        {
-            "anonymous": false,
-            "inputs": [
-                {"indexed": true, "internalType": "bytes32", "name": "id", "type": "bytes32"},
-                {"indexed": false, "internalType": "address", "name": "caller", "type": "address"},
-                {"indexed": true, "internalType": "address", "name": "onBehalf", "type": "address"},
-                {"indexed": true, "internalType": "address", "name": "receiver", "type": "address"},
-                {"indexed": false, "internalType": "uint256", "name": "assets", "type": "uint256"},
-                {"indexed": false, "internalType": "uint256", "name": "shares", "type": "uint256"}
-            ],
-            "name": "Borrow",
-            "type": "event"
-        }
-    ]
-    "#,
-    event_derives(serde::Deserialize, serde::Serialize),
+    AaveOracle,
+    r#"[
+        function getAssetPrice(address asset) external view returns (uint256)
+    ]"#
 );
-
-
-
-
-
-
-

@@ -1,34 +1,159 @@
+use ethers::{
+    types::{Address, H256, U256},
+    signers::{LocalWallet, Signer}
+};
+use once_cell::sync::Lazy;
+use tokio::{
+    sync::Mutex,
+    task::JoinHandle
+};
+use std::{collections::HashSet, str::FromStr};
+use secrecy::{SecretString, ExposeSecret};
 
-pub const BORROWERS_QUERY_AAVE: &str = include_str!("../borrowers.gql");
-pub const BORROWERS_QUERY_MORPHO: &str = include_str!("../collaterals.gql");
-pub const SLIPPAGE_BPS: u64 = 30;
-pub const CONCURRENCY_LIMIT: usize = 5;
+use std::env;
+use dashmap::DashMap;
+
+
+// Shared
 pub const CHAIN_ID: u64 = 137;
+pub const DB_PATH: &str = "./sled_db";
+pub const BLOCK_INTERVAL: u64 = 3;
+pub const PRUNE_INTERVAL: u64 = 30;
 
-pub const AAVE_RESERVES: [&str; 3] = [
-    "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", 
-    "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", 
-    "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063"
-    ];
-    
-pub const MORPHO_MARKETS: [&str; 9] = [
-    "0x1cfe584af3db05c7f39d60e458a87a8b2f6b5d8c6125631984ec489f1d13553b", 
-    "0x2476bb905e3d94acd7b402b3d70d411eeb6ace82afd3007da69a0d5904dfc998", 
-    "0xd1485762dd5256b99530b6b07ab9d20c8d31b605dd5f27ad0c6dec2a18179ac6", 
-    "0xa8c2e5b31d1f3fb6c000bd49355d091f71e7c866fcb74a1cb2562ef67157bc2a", 
-    "0x1947267c49c3629c5ed59c88c411e8cf28c4d2afdb5da046dc8e3846a4761794",
-    "0x7506b33817b57f686e37b87b5d4c5c93fdef4cffd21bbf9291f18b2f29ab0550",
-    "0x267f344f5af0d85e95f253a2f250985a9fb9fca34a3342299e20c83b6906fc80",
-    "0xa5b7ae7654d5041c28cb621ee93397394c7aee6c6e16c7e0fd030128d87ee1a3",
-    "0x41e537c46cc0e2f82aa69107cd72573f585602d8c33c9b440e08eaba5e8fded1"
-    ];
+pub const FLASH_LIQUIDATOR: &str = "";
 
-//health-check constants for morpho liquidator
 
+//pub const TENDERLY_ACCESS_KEY: &str = 
+
+
+pub static TOKEN_DECIMAL_CACHE: Lazy<DashMap<Address, u8>> = Lazy::new(|| DashMap::new() );
+
+pub static PRIVATE_KEY: Lazy<SecretString> = Lazy::new(|| {
+    SecretString::new(load_private_key().into())
+});
+
+pub static RPC_URL: Lazy<String> = Lazy::new(|| {
+    load_rpc_url()
+});
+
+pub static WALLET: Lazy<LocalWallet> = Lazy::new(|| {
+        PRIVATE_KEY
+        .expose_secret()
+        .parse::<LocalWallet>()
+        .expect("Invalid private key")
+        .with_chain_id(CHAIN_ID)
+});
+
+pub static GLOBAL_TASK_HANDLES: Lazy<Mutex<Vec<JoinHandle<()>>>> = Lazy::new(|| {Mutex::new(Vec::new())});
+
+// Morpho
+pub const MORPHO_BLUE: &str = "0x1bF0c2541F820E775182832f06c0B7Fc27A25f67"; 
 pub const VIRTUAL_ASSETS: u128 = 1;
 pub const VIRTUAL_SHARES: u128 = 1_000_000;
-pub const PRICE_DECIMALS: usize = 36;
-pub const RATIO_DECIMALS: usize = 18;
-pub const BPS_DECIMALS: u32 = 4;
-pub const MAX_BPS: u64 = 10_000; // 100% in BPS
-pub const CLOSE_FACTOR_BPS: u64 = 50000;
+
+
+
+pub static  WAD: Lazy<U256> = Lazy::new(|| {
+    pow10(18)
+});
+
+pub static  MAX_LIQUIDATION_INCENTIVE_FACTOR: Lazy<U256> = Lazy::new(||{
+    max_liquidation_incentive_factor()
+});
+
+pub static  ORACLE_PRICE_SCALE: Lazy<U256> = Lazy::new(||{
+    oracle_price_scale()
+});
+
+pub static  LIQUIDATION_CURSOR: Lazy<U256> = Lazy::new(||{
+    liquidation_cursor()
+});
+
+pub static MORPHO_MARKETS: Lazy<HashSet<H256>> = Lazy::new(|| {
+    [
+        "0x1cfe584af3db05c7f39d60e458a87a8b2f6b5d8c6125631984ec489f1d13553b",
+        "0x2476bb905e3d94acd7b402b3d70d411eeb6ace82afd3007da69a0d5904dfc998",
+        "0xd1485762dd5256b99530b6b07ab9d20c8d31b605dd5f27ad0c6dec2a18179ac6",
+        "0xa8c2e5b31d1f3fb6c000bd49355d091f71e7c866fcb74a1cb2562ef67157bc2a",
+        "0x1947267c49c3629c5ed59c88c411e8cf28c4d2afdb5da046dc8e3846a4761794",
+        "0x7506b33817b57f686e37b87b5d4c5c93fdef4cffd21bbf9291f18b2f29ab0550",
+        "0x267f344f5af0d85e95f253a2f250985a9fb9fca34a3342299e20c83b6906fc80",
+        "0xa5b7ae7654d5041c28cb621ee93397394c7aee6c6e16c7e0fd030128d87ee1a3",
+        "0x41e537c46cc0e2f82aa69107cd72573f585602d8c33c9b440e08eaba5e8fded1",
+    ]
+    .into_iter()
+    .map(|s| H256::from_str(s).expect("invalid Morpho market id"))
+    .collect()
+});
+
+    // Aave
+pub const HF_LIQUIDATION_THRESHOLD_BPS: u128 = 9_500; // 0.95
+pub const UIPOOL_DATA_PROVIDER: &str = "";
+pub const AAVE_V3_POOL: &str = "";
+pub const AAVE_ORACLE: &str = "";
+pub const POOL_ADDRESS_PROVIDER: &str = "";
+
+pub static AAVE_RESERVES: Lazy<HashSet<Address>> = Lazy::new(|| {
+    [
+        "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", // USDC
+        "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", // USDT
+        "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619", // WETH
+        "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063"  // DAI
+    ]
+    .into_iter()
+    .map(|s| s.parse::<Address>().expect("invalid reserve address"))
+    .collect()
+});
+
+pub static ATOKENS_ADDR: Lazy<DashMap<Address, Address>> = Lazy::new(|| {
+    DashMap::new()
+
+});
+
+
+
+
+//helpers
+
+fn max_liquidation_incentive_factor() -> U256 {
+    U256::from(115) * pow10(16)
+}
+
+/// Oracle price scale (1e36)
+pub fn oracle_price_scale() -> U256 {
+    pow10(36)
+}
+
+/// 30% liquidation cursor (0.3e18)
+pub fn liquidation_cursor() -> U256 {
+    U256::from(3) * pow10(17)
+}
+
+fn pow10(exp: u32) -> U256 {
+    U256::from(10).pow(U256::from(exp))
+}
+
+fn load_private_key() -> String {
+    
+    match env::var("PRIVATE_KEY") {
+        Ok(key) => {
+            println!("⚠️ Loaded PRIVATE_KEY from environment variable.");
+            key
+        }
+        Err(_) => panic!(
+            "❌ No private key found. Please set PRIVATE_KEY env var or provide /run/secrets/private_key."
+        ),
+    }
+}
+
+ fn load_rpc_url() -> String {
+    match env::var("RPC_URL") {
+        Ok(key) => key,
+        Err(_) => panic!(
+            "No RPC URL found. Please set RPC_URL env var."
+        )
+    }
+}
+
+
+
