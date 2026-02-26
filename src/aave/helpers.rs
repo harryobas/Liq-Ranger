@@ -1,6 +1,5 @@
 use anyhow::{Result, anyhow};
-use ethers::types::{Address, Bytes, U256};
-use ethers::abi::{encode, Token};
+use ethers::types::{Address, U256};
 use ethers::providers::Middleware;
 use std::sync::Arc;
 
@@ -17,7 +16,7 @@ use super::{
 };
 
 use crate::{
-    common::{abi_bindings::IERC20, liq_data::LiqData, get_token_decimals},
+    common::{abi_bindings::IERC20, get_token_decimals},
     constants::{WAD, ATOKENS_ADDR, HF_LIQUIDATION_THRESHOLD_BPS}
     
 };
@@ -185,41 +184,6 @@ pub async fn select_best_collateral<M: Middleware + 'static>(
     }
 
     best.ok_or_else(|| anyhow!("no viable collateral"))
-}
-
-//
-// ─────────────────────────────────────────────────────────────
-//  Encoding
-// ─────────────────────────────────────────────────────────────
-//
-
-/// Encodes liquidation payload for FlashLiquidator
-pub fn encode_liq_data(liq: &LiqData) -> Bytes {
-     let tokens = vec![
-        // enum → uint8
-        Token::Uint(U256::from(liq.mode.clone() as u8)),
-
-        // common
-        Token::Address(liq.borrower),
-
-        // aave
-        Token::Address(liq.aave_debt_asset),
-        Token::Address(liq.aave_collateral),
-        Token::Uint(liq.aave_debt_to_cover),
-        //Token::Uint(liq.aave_min_amount_out),
-
-        // morpho
-        Token::FixedBytes(liq.morpho_market_id.as_fixed_bytes().to_vec()),
-        Token::Uint(liq.morpho_repaid_shares),
-        Token::Uint(liq.morpho_seized_assets),
-
-        // swap
-        Token::Address(liq.swap_target),
-        Token::Address(liq.swap_allowance_target),
-        Token::Bytes(liq.swap_data.to_vec()),
-    ];
-
-    Bytes::from(encode(&tokens))
 }
 
 //

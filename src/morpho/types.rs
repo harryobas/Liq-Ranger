@@ -32,7 +32,8 @@ pub struct LiqCandidate{
     pub collateral_token: Address,
     pub swap_target: Address,
     pub swap_data: Bytes,
-    pub swap_proxy: Address
+    pub swap_proxy: Address,
+    pub min_amt_out: U256
 }
 
 pub struct Market {

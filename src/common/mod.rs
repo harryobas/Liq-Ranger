@@ -21,6 +21,7 @@ use tenderly_rs::{
     executors::types::{TransactionParameters, SimulationParameters}
 };
 
+use crate::common::abi_bindings::LiquidationParams;
 use crate::{
     constants::TOKEN_DECIMAL_CACHE, 
     common::abi_bindings::IERC20
@@ -55,8 +56,8 @@ pub trait Config: Send + Sync {
 #[async_trait::async_trait]
 pub trait LiquidationContract<M: Middleware + 'static>: Send + Sync{
     fn address(&self) -> Address;
-    async fn execute_tx(&self, loan_amt: U256, debt_asset: Address, liq_data: Bytes,) -> anyhow::Result<TxHash>;
-    fn calldata(&self, loan_amt: U256, debt_asset: Address, liq_data: Bytes) -> anyhow::Result<Bytes>;
+    async fn execute_tx(&self, flash_amt: U256,  liq_params: LiquidationParams,) -> anyhow::Result<TxHash>;
+    fn extract_calldata(&self, flash_amt: U256,  liq_params: LiquidationParams) -> anyhow::Result<Bytes>;
 }
 
 /// Swap query parameters
@@ -83,11 +84,10 @@ pub enum AdminCmd {
 
 pub async fn execute_liq_tx<M: Middleware + 'static>(
     loan_amt: U256,
-    debt_asset: Address,
-    liq_data: Bytes,
+    liq_params: LiquidationParams,
     flash_liq: &dyn LiquidationContract<M>
 ) -> anyhow::Result<TxHash> {
-    flash_liq.execute_tx(loan_amt, debt_asset, liq_data).await
+    flash_liq.execute_tx(loan_amt,  liq_params).await
 }
 
 pub async fn simulate_liq_tx<M: Middleware + 'static>(
@@ -95,8 +95,7 @@ pub async fn simulate_liq_tx<M: Middleware + 'static>(
     config: Arc<dyn Config>,
     provider: Arc<M>,
     loan_amt: U256,
-    debt_asset: Address,
-    liq_data: Bytes
+    liq_params: LiquidationParams
 ) -> anyhow::Result<()>{
     // 1. Initialize Tenderly SDK client
     let tenderly = Tenderly::new(TenderlyConfiguration::new(
@@ -108,7 +107,7 @@ pub async fn simulate_liq_tx<M: Middleware + 'static>(
 
     // 2. Build the simulation parameters from the contract call
     let target_address = flash_liq.address();
-    let call_data = flash_liq.calldata(loan_amt, debt_asset, liq_data)?;
+    let call_data = flash_liq.extract_calldata(loan_amt, liq_params)?;
 
     let gas_price = provider.get_gas_price().await?;
 

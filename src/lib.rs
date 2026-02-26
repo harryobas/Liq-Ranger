@@ -101,7 +101,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
 
     let _ = shutdown_tx.send(true);
 
-    shutdown_all_tasks();
+    shutdown_all_tasks().await;
 
     tracing::info!("👋 Shutdown complete");
 

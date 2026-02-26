@@ -7,10 +7,6 @@ pub struct CollateralCandidate{
     pub usd_value: U256
 }
 
-pub enum LiquidationCommand{
-    RunCycle,
-    Shutdown
-}
 
 pub struct LiquidationCandidate {
     pub debt_to_cover: U256,
@@ -19,6 +15,7 @@ pub struct LiquidationCandidate {
     pub borrower: Address,
     pub swap_target: Address,
     pub swap_proxy: Address,
-    pub swap_data: Bytes
+    pub swap_data: Bytes,
+    pub min_amt_out: U256
     
 }

@@ -9,7 +9,6 @@ use futures_util::stream::{self, StreamExt};
 
 use super::{
     abi_bindings::{IMorphoBlue, IOracle, MarketParams},
-    helpers,
     morpho_math::*,
     morpho_config::MorphoConfig,
     morpho_watchlist::MorphoWatchList,
@@ -23,8 +22,7 @@ use crate::common::{
     get_token_decimals, 
     paraswap::ParaSwapClient, 
     simulate_liq_tx,
-    liq_data::LiqData,
-    abi_bindings::IFlashLiquidator
+    abi_bindings::{IFlashLiquidator, LiquidationParams}
     
 };
 
@@ -240,7 +238,7 @@ async fn analyze_borrower(
         };
 
         ensure!(
-            route.dest_amount >= repay_assets, 
+            route.min_amt_out >= repay_assets, 
             "swap output insufficient to repay debt"
         );
 
@@ -262,7 +260,8 @@ async fn analyze_borrower(
             collateral_token,
             swap_target: route.swap_target,
             swap_data: route.swap_data,
-            swap_proxy: route.token_transfer_proxy
+            swap_proxy: route.token_transfer_proxy,
+            min_amt_out: route.min_amt_out
         }))
     }
 }
@@ -282,25 +281,18 @@ where
             .into_iter()
             .map(|c| {
                 let debt = c.debt_to_cover;
-                let debt_asset = c.debt_token;
-                let data = LiqData::from(c);
-                (debt, debt_asset, data)
-            })
-            .collect::<Vec<_>>()
-            .into_iter()
-            .map(|(debt, debt_asset, data)| {
-                (debt, debt_asset, helpers::encode_liq_data(&data))
+                let data = LiquidationParams::from(c);
+                (debt, data)
             })
             .collect::<Vec<_>>();
 
         stream::iter(jobs)
-            .for_each_concurrent(2, |(loan_amt, debt_asset, data)| async move {
+            .for_each_concurrent(2, |(loan_amt,  data)| async move {
                 if simulate_liq_tx(
                     &self.flash_liquidator,
                     self.config.clone(),
                     self.client.clone(),
                     loan_amt,
-                    debt_asset,
                     data.clone(),
                 )
                 .await
@@ -308,7 +300,6 @@ where
                 {
                     if let Err(e) = execute_liq_tx(
                         loan_amt,
-                        debt_asset,
                         data,
                         &self.flash_liquidator,
                     )

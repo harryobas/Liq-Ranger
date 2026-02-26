@@ -4,7 +4,6 @@ use super::{abi_bindings::{
     IAaveV3Pool,  
     UiPoolDataProvider
 }, helpers::{
-    self,
     select_best_collateral, 
     compute_debt
 }, types::LiquidationCandidate, 
@@ -19,12 +18,13 @@ use ethers::{
 use std::sync::Arc;
 
 use crate::common::{
-    Liquidator,
+    Liquidator, 
     SwapQueryParams, 
-    get_token_decimals, simulate_liq_tx, execute_liq_tx, 
-    paraswap::ParaSwapClient,
-    abi_bindings::IFlashLiquidator,
-    liq_data::LiqData
+    abi_bindings::{IFlashLiquidator, LiquidationParams},
+     execute_liq_tx, 
+     get_token_decimals,  
+     paraswap::ParaSwapClient, 
+     simulate_liq_tx
 };
 use futures_util::{self, StreamExt, stream}; 
 
@@ -155,7 +155,7 @@ impl<M: Middleware> AaveLiquidator<M> {
         );
 
         ensure!(
-            route.dest_amount >= debt_to_cover,
+            route.min_amt_out >= debt_to_cover,
             "swap output insufficient to repay debt"
         );
 
@@ -166,7 +166,9 @@ impl<M: Middleware> AaveLiquidator<M> {
             borrower, 
             swap_target: route.swap_target, 
             swap_proxy: route.token_transfer_proxy, 
-            swap_data: route.swap_data
+            swap_data: route.swap_data,
+            min_amt_out: route.min_amt_out
+
         }))
         
     }
@@ -189,24 +191,18 @@ where
             .into_iter()
             .map(|c| {
                 let debt = c.debt_to_cover;
-                let debt_asset = c.debt_asset;
-                let data = LiqData::from(c);
-                (debt, debt_asset, data)
-            })
-            .collect::<Vec<_>>()
-            .into_iter()
-            .map(|(debt, debt_asset, data)| {
-                (debt, debt_asset, helpers::encode_liq_data(&data))
+                let data = LiquidationParams::from(c);
+                (debt, data)
             })
             .collect::<Vec<_>>();
+
          stream::iter(jobs)
-            .for_each_concurrent(2, |(loan_amt, debt_asset, data)| async move {
+            .for_each_concurrent(2, |(loan_amt, data)| async move {
                 if simulate_liq_tx(
                     &self.flash_liquidator,
                     self.config.clone(),
                     self.client.clone(),
                     loan_amt,
-                    debt_asset,
                     data.clone(),
                 )
                 .await
@@ -214,7 +210,6 @@ where
                 {
                     if let Err(e) = execute_liq_tx(
                         loan_amt,
-                        debt_asset,
                         data.clone(),
                         &self.flash_liquidator,
                     )

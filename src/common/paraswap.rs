@@ -35,6 +35,7 @@ pub struct SwapData {
     pub token_transfer_proxy: Address,
     pub dest_amount: U256,
     pub src_amount: U256,
+    pub min_amt_out: U256
 }
 
 impl ParaSwapClient {
@@ -74,14 +75,13 @@ impl ParaSwapClient {
     }
 
     /// Step 2: Call /transactions/:network to build transaction calldata
-     async fn build_transaction(
+    async fn build_transaction(
         &self,
         params: &SwapQueryParams,
         price_route: &serde_json::Value,
     ) -> Result<TransactionResponse> {
         let url = format!("https://api.paraswap.io/transactions/{}", params.chain_id);
 
-        // 10 minute deadline
         let deadline = SystemTime::now()
             .duration_since(UNIX_EPOCH)?
             .as_secs()
@@ -112,6 +112,7 @@ impl ParaSwapClient {
 
         Ok(resp)
     }
+  
    
     pub async fn compose_swap_data(&self, params: SwapQueryParams) -> anyhow::Result<SwapData> {
         // Step 1: Get price route
@@ -137,7 +138,14 @@ impl ParaSwapClient {
         let src_amount = src_amount_str
             .parse::<U256>()
             .with_context(|| format!("Failed to parse amount_in: {}", params.amount))?;
-        
+
+        let slippage_bps = U256::from(params.slippage_bps);
+
+        let min_amt_out = dest_amount
+        .checked_mul(U256::from(10000) - slippage_bps)
+        .ok_or_else(|| anyhow::anyhow!("Multiplication overflow"))?
+        / U256::from(10000);
+      
         // Step 3: Build transaction
         let tx_response = self.build_transaction(&params, &price_route_response.price_route).await?;
         
@@ -168,6 +176,7 @@ impl ParaSwapClient {
             token_transfer_proxy,
             dest_amount,
             src_amount,
+            min_amt_out
         })
     }
 }
