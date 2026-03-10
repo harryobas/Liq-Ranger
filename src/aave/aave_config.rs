@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, sync::Arc};
 use ethers::{providers::Middleware, signers::{LocalWallet, Signer}, types::Address};
 use super::{
     abi_bindings::{
@@ -6,7 +6,7 @@ use super::{
         IAaveV3Pool}
     };
 
-use crate::{common::Config, constants};
+use crate::{common::{self, Config}, constants};
 
 
 #[derive(Debug, Clone)]
@@ -52,31 +52,19 @@ impl Config for  AaveConfig  {
         self.wallet.address()
         
     }
-
-    fn tenderly_access_key(&self) -> String {
-        todo!()
-    }
-
-    fn tenderly_account(&self) -> String {
-        todo!()
-    }
-
-    fn tenderly_project(&self) -> String {
-        todo!()
-    }
-
  
 }
 
 impl AaveConfig {
        pub async fn populate_tokens<M: Middleware + 'static>(
         &mut self, 
-        pool: &IAaveV3Pool<M>
+        client: Arc<M>
     ) -> anyhow::Result<()> {
         let mut vdebt_mapping = HashMap::new();
         
 
         for reserve in &self.reserves {
+            let pool = common::fetch_contracts(client.clone())?.aave;
             let data: i_aave_v3_pool::ReserveData = pool.get_reserve_data(*reserve).call().await?;
             let vdebt_token = data.variable_debt_token_address;
         

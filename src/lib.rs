@@ -1,10 +1,12 @@
 mod aave;
 mod morpho;
+mod compound;
 mod common;
 mod block_watcher;
 mod liquidation_executor;
 mod watchlist_pruner;
 mod constants;
+mod profit_distributor;
 
 use std::sync::Arc;
 
@@ -17,9 +19,12 @@ use ethers::{
 use tokio::sync::{watch, mpsc, broadcast};
 
 use crate::{
-    common::{task_manager::{shutdown_all_tasks, spawn_and_register}, AdminCmd}, 
-    watchlist_pruner::WatchListPruner,
-};
+    common::{
+        AdminCmd, 
+        task_manager::{shutdown_all_tasks, spawn_and_register}}, 
+        profit_distributor::ProfitDistributor, 
+        watchlist_pruner::WatchListPruner
+    };
 
 pub async fn start_liquidation_engines() -> anyhow::Result<()> {
 
@@ -39,8 +44,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
     let (aave_tx, aave_rx) = mpsc::channel::<AdminCmd>(16);
     let (morpho_tx, morpho_rx) = mpsc::channel::<AdminCmd>(16);
 
-    
-    // Start Aave + Morpho Engines
+    // Start Aave + Morpho + Compound Engines
     let morpho_engine = morpho::start_engine(
         client.clone(),
         shutdown_rx.clone(),
@@ -91,6 +95,21 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
     spawn_and_register(async move {
         if let Err(e) = watchlist_pruner.start().await {
             tracing::error!("❌ Watchlist pruner failed: {:?}", e);
+        }
+    });
+
+    let f_liq = common::fetch_contracts(client.clone())?.flash_liq; 
+
+    let profit_distributor = Arc::new(
+        ProfitDistributor::new(
+        client.clone(), 
+        Arc::new(f_liq))
+    );
+
+    spawn_and_register(async move {
+        if let Err(e) = profit_distributor.start().await {
+             tracing::error!("❌ Profit_distributor failed: {:?}", e);
+
         }
     });
 

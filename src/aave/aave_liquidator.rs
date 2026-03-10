@@ -79,15 +79,26 @@ impl<M: Middleware> AaveLiquidator<M> {
         if snapshot.is_empty() {
             return Ok(vec![]);
         }
-        let mut out = vec![];
-
-        for (borrower, reserve) in snapshot {
-            if let Ok(Some(candidate)) = self.analyze_borrower(borrower, reserve).await {
-                out.push(candidate);
+    
+         let results: Vec<_> = stream::iter(snapshot)
+        .map(|(borrower, reserve)| async move {
+            self.analyze_borrower(borrower, reserve).await
+        })
+        .buffer_unordered(4)
+        .filter_map(|res| async {
+            match res {
+                Ok(Some(candidate)) => Some(candidate),
+                Ok(None) => None,
+                Err(e) => {
+                    tracing::warn!("analyze_borrower failed: {:?}", e);
+                    None
+                }
             }
-        }
+        })
+        .collect()
+        .await;
 
-        Ok(out)
+        Ok(results)
     }
 
     async fn analyze_borrower(
@@ -200,7 +211,6 @@ where
             .for_each_concurrent(2, |(loan_amt, data)| async move {
                 if simulate_liq_tx(
                     &self.flash_liquidator,
-                    self.config.clone(),
                     self.client.clone(),
                     loan_amt,
                     data.clone(),

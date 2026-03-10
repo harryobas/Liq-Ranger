@@ -36,8 +36,13 @@ pub async fn liquidation_bonus_bps<M: Middleware + 'static>(
     pool: &IAaveV3Pool<M>,
 ) -> Result<u16> {
     let config: U256 = pool.get_configuration(asset).call().await?;
-    let bonus = ((config >> 32) & U256::from(0xFFFF)).as_u32() as u16;
-    Ok(bonus)
+    let raw_bonus = ((config >> 32) & U256::from(0xFFFF)).as_u32() as u16;
+
+    // Aave stores it as 10500 for a 5% bonus. 
+    // If raw_bonus is 0, the asset isn't collateral.
+    if raw_bonus == 0 { return Ok(0); }
+    Ok(raw_bonus - 10_000)
+    
 }
 
 //

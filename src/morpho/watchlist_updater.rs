@@ -12,7 +12,7 @@ use ethers::{
     types::{Address, H256},
 };
 
-use futures_util::StreamExt;
+use futures_util::{StreamExt, stream};
 use tokio::sync::watch;
 
 use crate::common::{AdminCmd, WatchList};
@@ -157,24 +157,40 @@ impl<M: Middleware + 'static> WatchListUpdater<M> {
 
     let entries = self.watch_list.snapshot();
 
-    for (borrower, market) in entries {
-        let has_debt = helpers::has_outstanding_debt(
-            self.morpho.clone(),
-            borrower,
-            market
-        ).await?;
-
-        if !has_debt {
-            tracing::info!(
+    stream::iter(entries)
+        .for_each_concurrent(4, |(borrower, market)|async move {
+        match helpers::has_outstanding_debt(self.morpho.clone(), borrower, market).await{
+            Ok(true) => {},
+            Ok(false) => {
+                 tracing::info!(
                 "🧹 Prune removing cleared position: borrower={:?}, market={:?}",
                 borrower,
                 market
-            );
+              );
+              if let Err(e) = self.watch_list.remove((borrower, market)).await {
+                    tracing::error!(
+                    "Failed to remove borrower {:?} market {:?}: {:?}",
+                    borrower,
+                    market,
+                    e
+                );
+                  
+              }
 
-            self.watch_list.remove((borrower, market)).await?;
+            },
+            Err(e) => {
+                tracing::error!(
+                    "Failed to prune borrower {:?} market {:?}: {:?}",
+                    borrower,
+                    market,
+                    e
+                );
+
+            }
+
         }
-    }
 
+    }).await;
     tracing::info!("✅ Morpho watchlist prune complete");
     Ok(())
   }

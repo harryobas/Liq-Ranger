@@ -4,8 +4,10 @@ pub mod task_manager;
 pub mod liq_data;
 pub mod abi_bindings;
 
+use ethers::signers::Signer;
 use ethers::types::Address;
-use std::sync::Arc;
+
+use std::{sync::Arc, str::FromStr};
 use ethers::providers::Middleware;
 
 use ethers::{ 
@@ -21,9 +23,19 @@ use tenderly_rs::{
     executors::types::{TransactionParameters, SimulationParameters}
 };
 
-use crate::common::abi_bindings::LiquidationParams;
+use crate::aave::abi_bindings::IAaveV3Pool;
+use crate::common::abi_bindings::{IFlashLiquidator, LiquidationParams};
+use crate::compound::abi_bindings::IComet;
+use crate::constants;
+use crate::morpho::abi_bindings::IMorphoBlue;
 use crate::{
-    constants::TOKEN_DECIMAL_CACHE, 
+    constants::{
+        TOKEN_DECIMAL_CACHE, 
+        TENDERLY_ACCESS_KEY, 
+        TENDERLY_PROJECT, 
+        TENDERLY_ACCOUNT,
+        TOKEN_SYMBOL_CACHE
+    }, 
     common::abi_bindings::IERC20
 };
 
@@ -47,10 +59,6 @@ pub trait Config: Send + Sync {
     
     fn keeper_address(&self) -> Address;
     fn chain_id(&self) -> u64;
-    fn tenderly_access_key(&self) -> String;
-    fn tenderly_account(&self) -> String;
-    fn tenderly_project(&self) -> String;
-
 }
 
 #[async_trait::async_trait]
@@ -81,6 +89,12 @@ pub enum AdminCmd {
     
 }
 
+pub struct CoreContracts<M>{
+    pub aave: IAaveV3Pool<M>,
+    pub morpho: IMorphoBlue<M>,
+    pub comet: IComet<M>,
+    pub flash_liq: IFlashLiquidator<M>
+}
 
 pub async fn execute_liq_tx<M: Middleware + 'static>(
     loan_amt: U256,
@@ -92,17 +106,16 @@ pub async fn execute_liq_tx<M: Middleware + 'static>(
 
 pub async fn simulate_liq_tx<M: Middleware + 'static>(
     flash_liq: &dyn LiquidationContract<M>, 
-    config: Arc<dyn Config>,
     provider: Arc<M>,
     loan_amt: U256,
     liq_params: LiquidationParams
 ) -> anyhow::Result<()>{
     // 1. Initialize Tenderly SDK client
     let tenderly = Tenderly::new(TenderlyConfiguration::new(
-        config.tenderly_account(),
-        config.tenderly_project(), 
-        config.tenderly_access_key(), 
-        Network::from(config.chain_id()), // target network
+        TENDERLY_ACCOUNT.to_string(), 
+        TENDERLY_PROJECT.to_string(),
+        TENDERLY_ACCESS_KEY.clone(),
+        Network::Polygon
     ))?;
 
     // 2. Build the simulation parameters from the contract call
@@ -112,7 +125,7 @@ pub async fn simulate_liq_tx<M: Middleware + 'static>(
     let gas_price = provider.get_gas_price().await?;
 
     let transaction = TransactionParameters {
-        from: config.keeper_address().to_string(), // Your bot's address
+        from: constants::WALLET.address().to_string(), // Your bot's address
         to: target_address.to_string(),
         gas: 0, // Tenderly estimates this
         gas_price: gas_price.to_string(),
@@ -194,6 +207,36 @@ pub async fn get_token_decimals<M: Middleware + 'static>(
     TOKEN_DECIMAL_CACHE.insert(token, result);
     Ok(result)
 
+}
+
+pub async fn get_token_symbol<M: Middleware + 'static>(
+    token: Address, 
+    provider: Arc<M>
+) -> anyhow::Result<String> {
+    if let Some(dec) = TOKEN_SYMBOL_CACHE.get(&token) {
+        return Ok(dec.value().clone());
+    }
+
+    let contract = IERC20::new(token, provider.clone());
+    let result = contract.symbol().call().await?;
+
+    TOKEN_SYMBOL_CACHE.insert(token, result.clone());
+    Ok(result)
+    
+}
+
+pub fn fetch_contracts<M: Middleware + 'static>(client: Arc<M>) -> anyhow::Result<CoreContracts<M>> {
+        let liq_addr = Address::from_str(constants::FLASH_LIQUIDATOR)?;
+        let aave_addr = Address::from_str(constants::AAVE_V3_POOL)?;
+        let comet_addr = Address::from_str(constants::COMET)?;
+        let morpho_addr = Address::from_str(constants::MORPHO_BLUE)?;
+
+        let flash_liq = IFlashLiquidator::new(liq_addr, client.clone());
+        let aave = IAaveV3Pool::new(aave_addr, client.clone());
+        let comet = IComet::new(comet_addr, client.clone());
+        let morpho = IMorphoBlue::new(morpho_addr, client.clone());
+
+        Ok(CoreContracts { aave, morpho, comet, flash_liq })
 }
 
 

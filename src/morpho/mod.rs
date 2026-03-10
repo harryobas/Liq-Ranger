@@ -15,7 +15,7 @@ use morpho_watchlist::MorphoWatchList;
 use morpho_liquidator::MorphoLiquidator;
 use watchlist_updater::WatchListUpdater;
 
-use crate::common::{Config, Liquidator, task_manager::spawn_and_register, AdminCmd};
+use crate::common::{self, AdminCmd, Config, Liquidator, task_manager::spawn_and_register};
 
 use tokio::sync::{mpsc, watch};
 
@@ -30,14 +30,11 @@ pub async fn start_engine<M: Middleware + 'static>(
 
     let watch_list = Arc::new(MorphoWatchList::new(db)?);
 
-    let (morpho_blue, flash_liq) = helpers::fetch_contracts(
-        client.clone(), 
-        config.clone()
-    );
+    let contracts = common::fetch_contracts(client.clone())?;
 
     let morpho_liq = Arc::new(MorphoLiquidator::new(
-        morpho_blue.clone(), 
-        flash_liq.clone(), 
+        contracts.morpho.clone(), 
+        contracts.flash_liq.clone(), 
         watch_list.clone(), 
         client.clone(), 
         config.clone()
@@ -45,7 +42,7 @@ pub async fn start_engine<M: Middleware + 'static>(
 
     let updater = WatchListUpdater::new(
         watch_list.clone(), 
-        Arc::new(morpho_blue.clone()), 
+        Arc::new(contracts.morpho), 
         config.clone(),
         shutdown_rx,
         prune_rx
@@ -59,5 +56,5 @@ pub async fn start_engine<M: Middleware + 'static>(
     });
 
 
-    Ok(morpho_liq.clone())
+    Ok(morpho_liq)
 }

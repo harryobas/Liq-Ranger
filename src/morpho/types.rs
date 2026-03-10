@@ -21,7 +21,6 @@ pub enum LiquidationMode {
     },
 }
 
-
 pub struct LiqCandidate{
     pub debt_to_cover: U256,
     pub borrower: Address,

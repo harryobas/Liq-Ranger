@@ -73,6 +73,7 @@ impl<M: Middleware + 'static> MorphoLiquidator<M> {
         .filter_map(|res| async {
             match res {
                 Ok(Some(candidate)) => Some(candidate),
+
                 Ok(None) => None,
                 Err(e) => {
                     tracing::warn!("analyze_borrower failed: {:?}", e);
@@ -98,7 +99,6 @@ async fn analyze_borrower(
         if borrow_shares == 0 {
             return Ok(None);
         }
-
         
         let (_, _, total_borrow_assets, total_borrow_shares, _, _) =
             self.morpho_blue.market(market_id).call().await?;
@@ -290,7 +290,6 @@ where
             .for_each_concurrent(2, |(loan_amt,  data)| async move {
                 if simulate_liq_tx(
                     &self.flash_liquidator,
-                    self.config.clone(),
                     self.client.clone(),
                     loan_amt,
                     data.clone(),

@@ -45,23 +45,10 @@ impl Config for MorphoConfig {
     }
 
     fn keeper_address(&self) -> Address {
-        self.wallet.address()
+        self.keeper_address
     }
     fn chain_id(&self) -> u64 {
         self.chain_id
     }
-
-    fn tenderly_access_key(&self) -> String {
-        todo!()
-    }
-
-    fn tenderly_account(&self) -> String {
-        todo!()
-    }
-
-    fn tenderly_project(&self) -> String {
-        todo!()
-    }
-    
-    
+      
 }

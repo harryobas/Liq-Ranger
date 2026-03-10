@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use dashmap::DashMap;
-use ethers::{types::{Address, H256}};
+use ethers::{core::rand, types::{Address, H256}};
 use sled::{Db, Tree};
 use bincode;
 
@@ -36,7 +36,7 @@ impl MorphoWatchList {
 
     /// Take a snapshot of all borrower → market_id pairs
     pub fn snapshot(&self) -> Vec<(Address, H256)> {
-        let mut out = Vec::new();
+        let mut out = Vec::with_capacity(self.cache.len() * 2);
         for entry in self.cache.iter() {
             let borrower = *entry.key();
             for market_id in entry.value().iter() {
@@ -49,7 +49,9 @@ impl MorphoWatchList {
     /// Persist a specific borrower's set to sled
     async fn persist(&self, borrower: Address) -> anyhow::Result<()> {
         let db = self.db.clone();
-        let maybe_set = self.cache.get(&borrower).map(|v| v.clone());
+        let maybe_set = {
+            self.cache.get(&borrower).map(|v| v.value().clone())
+        };
 
         tokio::task::spawn_blocking(move || {
             if let Some(set) = maybe_set {
@@ -58,11 +60,22 @@ impl MorphoWatchList {
             } else {
                 db.remove(borrower.as_bytes())?;
             }
+            if rand::random::<u8>() % 32 == 0 {
+            db.flush()?;
+            }
+
             Ok::<_, anyhow::Error>(())
         })
         .await??;
 
         Ok(())
+    }
+
+    pub fn contains(&self, borrower: Address, market_id: H256) -> bool {
+        self.cache
+            .get(&borrower)
+            .map(|set| set.contains(&market_id))
+            .unwrap_or(false)
     }
     
 }
@@ -72,7 +85,9 @@ impl WatchList<(Address, H256)> for MorphoWatchList {
     async fn add(&self, (borrower, market_id): (Address, H256)) -> anyhow::Result<()> {
         let mut set = self.cache.entry(borrower).or_default();
         if !set.insert(market_id) {
-            anyhow::bail!("Market_id already exists for borrower");
+            tracing::warn!(?borrower, ?market_id, "Market already tracked");
+            return Ok(());
+
         }
         drop(set);
 
@@ -83,7 +98,8 @@ impl WatchList<(Address, H256)> for MorphoWatchList {
     async fn remove(&self, (borrower, market_id): (Address, H256)) -> anyhow::Result<()> {
         if let Some(mut entry) = self.cache.get_mut(&borrower) {
             if !entry.remove(&market_id) {
-                anyhow::bail!("Market_id not found for borrower");
+                tracing::debug!(?borrower, ?market_id, "Market not found during removal");
+                return Ok(());
             }
 
             let empty = entry.is_empty();
@@ -97,7 +113,8 @@ impl WatchList<(Address, H256)> for MorphoWatchList {
             return Ok(());
         }
 
-        anyhow::bail!("Borrower not found")
+        tracing::warn!(?borrower, ?market_id, "Borrower not found during removal");
+        Ok(())
     }
     
 }

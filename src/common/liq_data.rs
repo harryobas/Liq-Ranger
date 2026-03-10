@@ -2,7 +2,8 @@ use ethers::types::{H256, U256, Address};
 
 use crate::{
     aave::types::LiquidationCandidate,
-    morpho::types::LiqCandidate
+    morpho::types::LiqCandidate,
+    compound::types::BuyCollateralParams
 };
 
 use crate::common::LiquidationParams;
@@ -17,7 +18,11 @@ impl From<LiquidationCandidate> for LiquidationParams {
              aave_debt_to_cover: value.debt_to_cover, 
              morpho_market_id: H256::zero().into(), 
              morpho_repaid_shares: U256::zero(), 
-             morpho_seized_assets: U256::zero(), 
+             morpho_seized_assets: U256::zero(),
+             compound_collateral: Address::zero(),
+             compound_debt_asset: Address::zero(),
+             compound_debt_to_cover: U256::zero(),
+             compound_min_collateral: U256::zero(), 
              swap_target: value.swap_target, 
              swap_allowance_target: value.swap_proxy, 
              swap_data: value.swap_data,
@@ -38,7 +43,11 @@ impl From<LiqCandidate> for LiquidationParams {
             aave_debt_to_cover: U256::zero(), 
             morpho_market_id: value.market_id.to_fixed_bytes(), 
             morpho_repaid_shares: value.repaid_shares, 
-            morpho_seized_assets: value.seized_assets, 
+            morpho_seized_assets: value.seized_assets,
+            compound_collateral: Address::zero(),
+            compound_debt_asset: Address::zero(),
+            compound_debt_to_cover: U256::zero(),
+            compound_min_collateral: U256::zero(),
             swap_target: value.swap_target, 
             swap_allowance_target: value.swap_proxy, 
             swap_data: value.swap_data,
@@ -47,4 +56,28 @@ impl From<LiqCandidate> for LiquidationParams {
         }
     }
     
+}
+
+impl From<BuyCollateralParams> for LiquidationParams {
+    fn from(value: BuyCollateralParams) -> Self {
+        Self { 
+            mode: 2, 
+            borrower: Address::zero(), 
+            aave_debt_asset: Address::zero(), 
+            aave_collateral: Address::zero(), 
+            aave_debt_to_cover: U256::zero(), 
+            morpho_market_id: [0u8; 32], 
+            morpho_repaid_shares: U256::zero(), 
+            morpho_seized_assets: U256::zero(),
+            compound_collateral: value.collateral_asset,
+            compound_debt_asset: value.base_asset,
+            compound_debt_to_cover: value.base_amount,
+            compound_min_collateral: value.min_collateral, 
+            swap_target: value.swap_target, 
+            swap_allowance_target: value.swap_proxy, 
+            swap_data: value.swap_data, 
+            flash_asset: value.base_asset, 
+            min_amt_out: value.min_base_out
+        }
+    }
 }

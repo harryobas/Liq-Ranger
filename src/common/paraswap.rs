@@ -85,7 +85,7 @@ impl ParaSwapClient {
         let deadline = SystemTime::now()
             .duration_since(UNIX_EPOCH)?
             .as_secs()
-            + 600;
+            + 300;
 
         let body = serde_json::json!({
             "srcToken": params.src_token,

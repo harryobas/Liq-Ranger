@@ -1,6 +1,5 @@
 use ethers::{
-    types::{Address, H256, U256},
-    signers::{LocalWallet, Signer}
+    signers::{LocalWallet, Signer}, types::{Address, H256, U256}, utils::parse_ether
 };
 use once_cell::sync::Lazy;
 use tokio::{
@@ -21,12 +20,54 @@ pub const BLOCK_INTERVAL: u64 = 3;
 pub const PRUNE_INTERVAL: u64 = 30;
 
 pub const FLASH_LIQUIDATOR: &str = "";
+pub const COMET: &str = "";
 
 
-//pub const TENDERLY_ACCESS_KEY: &str = 
+pub static TENDERLY_ACCESS_KEY: Lazy<String> = Lazy::new(|| {
+    load_tenderly_access_key()
+});
+
+pub const TENDERLY_ACCOUNT: &str = "harryobas";
+pub const TENDERLY_PROJECT: &str = "project";
+
+pub static USDC: Lazy<Address> = Lazy::new(|| 
+    Address::from_str("0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359").expect("Failed")
+);
+pub static USDT: Lazy<Address> = Lazy::new(|| 
+    Address::from_str("0xc2132D05D31c914a87C6611C10748AEb04B58e8F").expect("Failed")
+);
+pub static WPOL: Lazy<Address> = Lazy::new(||
+    Address::from_str("0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270").expect("Failed")
+);
+
+pub static BREET_USDC: Lazy<Address> = Lazy::new(||
+    Address::from_str("0x46082c9F4ca0eF92c510984B612183211c0a27dE").expect("Failed")
+    
+);
+
+pub static BREET_USDT: Lazy<Address> = Lazy::new(|| 
+    Address::from_str("0x46082c9F4ca0eF92c510984B612183211c0a27dE").expect("Failed")
+
+);
+
+pub static GAS_THRESHOLD: Lazy<U256> = Lazy::new(|| parse_ether(10u64).expect("Failed"));
+pub static REFUEL_AMT: Lazy<U256> = Lazy::new(|| parse_ether(100).expect("Failed"));
+
+pub static PROFIT_DIST_ASSETS: Lazy<Vec<Address>> = Lazy::new(|| {
+    let mut profit_assets: Vec<Address> = AAVE_RESERVES.iter().cloned().collect();
+    if !profit_assets.contains(&WPOL) {
+        profit_assets.push(*WPOL);
+    }
+
+    profit_assets
+
+    
+});
 
 
 pub static TOKEN_DECIMAL_CACHE: Lazy<DashMap<Address, u8>> = Lazy::new(|| DashMap::new() );
+pub static TOKEN_SYMBOL_CACHE: Lazy<DashMap<Address, String>> = Lazy::new(|| DashMap::new() );
+
 
 pub static PRIVATE_KEY: Lazy<SecretString> = Lazy::new(|| {
     SecretString::new(load_private_key().into())
@@ -50,8 +91,6 @@ pub static GLOBAL_TASK_HANDLES: Lazy<Mutex<Vec<JoinHandle<()>>>> = Lazy::new(|| 
 pub const MORPHO_BLUE: &str = "0x1bF0c2541F820E775182832f06c0B7Fc27A25f67"; 
 pub const VIRTUAL_ASSETS: u128 = 1;
 pub const VIRTUAL_SHARES: u128 = 1_000_000;
-
-
 
 pub static  WAD: Lazy<U256> = Lazy::new(|| {
     pow10(18)
@@ -91,17 +130,18 @@ pub static MORPHO_MARKETS: Lazy<HashSet<H256>> = Lazy::new(|| {
 
     // Aave
 pub const HF_LIQUIDATION_THRESHOLD_BPS: u128 = 9_500; // 0.95
-pub const UIPOOL_DATA_PROVIDER: &str = "";
-pub const AAVE_V3_POOL: &str = "";
-pub const AAVE_ORACLE: &str = "";
-pub const POOL_ADDRESS_PROVIDER: &str = "";
+pub const UIPOOL_DATA_PROVIDER: &str = "0xFa1A7c4a8A63C9CAb150529c26f182cBB5500944";
+pub const AAVE_V3_POOL: &str = "0x794a61358D6845594F94dc1DB02A252b5b4814aD";
+pub const AAVE_ORACLE: &str = "0xb023e699F5a33916Ea823A16485e259257cA8Bd1";
+pub const POOL_ADDRESS_PROVIDER: &str = "0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb";
 
 pub static AAVE_RESERVES: Lazy<HashSet<Address>> = Lazy::new(|| {
     [
         "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", // USDC
         "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", // USDT
         "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619", // WETH
-        "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063"  // DAI
+        "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",  // DAI
+        "0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6"  // WBTC
     ]
     .into_iter()
     .map(|s| s.parse::<Address>().expect("invalid reserve address"))
@@ -112,9 +152,6 @@ pub static ATOKENS_ADDR: Lazy<DashMap<Address, Address>> = Lazy::new(|| {
     DashMap::new()
 
 });
-
-
-
 
 //helpers
 
@@ -154,6 +191,16 @@ fn load_private_key() -> String {
         Ok(key) => key,
         Err(_) => panic!(
             "No RPC URL found. Please set RPC_URL env var."
+        )
+    }
+}
+
+fn load_tenderly_access_key() -> String {
+    match env::var("TENDERLY_ACCESS_KEY") {
+        Ok(key) => key,
+        Err(_) => panic!(
+            "No TENDERLY ACCESS KEY found. Please set TENDERLY ACCESS KEY env var."
+
         )
     }
 }

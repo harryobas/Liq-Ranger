@@ -9,18 +9,12 @@ pub mod abi_bindings;
 use std::sync::Arc;
 
  use aave_config::AaveConfig;
- use abi_bindings::IAaveV3Pool;
  use aave_watchlist::AaveWatchList;
  use watchlist_updater::AaveWatchListUpdater;
  use aave_liquidator::AaveLiquidator;
 
-use crate::{
-   common::{
-    AdminCmd, 
-    Config, 
-    Liquidator, 
-    task_manager::spawn_and_register}
-};
+use crate::common::{
+    self, AdminCmd, Config, Liquidator, task_manager::spawn_and_register};
 use tokio::sync::{mpsc, watch};
 use ethers::providers::Middleware;
 
@@ -34,10 +28,9 @@ pub async fn start_engine<M: Middleware  + 'static>(
 ) -> anyhow::Result<Arc<dyn Liquidator>>{
     let mut aave_config = AaveConfig::load()?;
 
-     let pool = IAaveV3Pool::new(aave_config.lending_pool, client.clone());
-     aave_config.populate_tokens(&pool).await?;
+     aave_config.populate_tokens(client.clone()).await?;
 
-    let pool = Arc::new(pool);
+    let pool = Arc::new(common::fetch_contracts(client.clone())?.aave);
 
     let aave_config = Arc::new(aave_config);
 

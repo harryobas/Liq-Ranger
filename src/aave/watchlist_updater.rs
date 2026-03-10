@@ -139,6 +139,7 @@ impl<M: Middleware + Send + Sync + 'static> AaveWatchListUpdater<M> {
 
 
     async fn prune_watchlist(&self) -> Result<()> {
+        
     let snapshot = self.watch_list.snapshot();
 
     tracing::info!("🧹 Pruning {} entries", snapshot.len());

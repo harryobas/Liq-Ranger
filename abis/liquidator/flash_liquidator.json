@@ -11,9 +11,18 @@
         "name": "aave_",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "comet_",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "receive",
+    "stateMutability": "payable"
   },
   {
     "type": "function",
@@ -43,6 +52,19 @@
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "comet",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IComet"
       }
     ],
     "stateMutability": "view"
@@ -116,6 +138,26 @@
           },
           {
             "name": "morphoSeizedAssets",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "compoundDebtAsset",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "compoundCollateral",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "compoundDebtToCover",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "compoundMinCollateral",
             "type": "uint256",
             "internalType": "uint256"
           },
@@ -232,6 +274,19 @@
   },
   {
     "type": "function",
+    "name": "refuelGas",
+    "inputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "renounceOwnership",
     "inputs": [],
     "outputs": [],
@@ -299,6 +354,43 @@
       },
       {
         "name": "profit",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "timestamp",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ProfitDistributed",
+    "inputs": [
+      {
+        "name": "asset",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "breetAddr",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "breetShare",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "ownerShare",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"

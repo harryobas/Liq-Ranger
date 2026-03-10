@@ -1,5 +1,17 @@
 use ethers::{
-    prelude::abigen, providers::Middleware, types::{Address, Bytes, H256, U256, transaction::{eip1559::Eip1559TransactionRequest, eip2718::TypedTransaction}}};
+    prelude::abigen, 
+    providers::Middleware, 
+    types::{
+        Address, 
+        Bytes, 
+        H256, 
+        U256, 
+        transaction::{
+            eip1559::Eip1559TransactionRequest, 
+            eip2718::TypedTransaction
+        }
+    }
+};
 use crate::common::LiquidationContract;
 
 abigen!(
