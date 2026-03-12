@@ -22,6 +22,10 @@ pub const PRUNE_INTERVAL: u64 = 30;
 pub const FLASH_LIQUIDATOR: &str = "";
 pub const COMET: &str = "";
 
+pub const AAVE_DEPLOY_BLOCK: u64 = 25_700_000;
+pub const COMPOUND_DEPLOY_BLOCK: u64 = 42_000_000;
+pub const MORPHO_DEPLOY_BLOCK: u64 = 57_000_000;
+
 
 pub static TENDERLY_ACCESS_KEY: Lazy<String> = Lazy::new(|| {
     load_tenderly_access_key()

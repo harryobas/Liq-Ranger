@@ -23,22 +23,24 @@ use tenderly_rs::{
     executors::types::{TransactionParameters, SimulationParameters}
 };
 
-use crate::aave::abi_bindings::IAaveV3Pool;
-use crate::common::abi_bindings::{IFlashLiquidator, LiquidationParams};
-use crate::compound::abi_bindings::IComet;
-use crate::constants;
-use crate::morpho::abi_bindings::IMorphoBlue;
 use crate::{
     constants::{
+        self,
         TOKEN_DECIMAL_CACHE, 
         TENDERLY_ACCESS_KEY, 
         TENDERLY_PROJECT, 
         TENDERLY_ACCOUNT,
         TOKEN_SYMBOL_CACHE
     }, 
-    common::abi_bindings::IERC20
+    common::abi_bindings::{IERC20, IFlashLiquidator, LiquidationParams},
+    aave::{aave_watchlist::AaveWatchList, abi_bindings::IAaveV3Pool},
+    compound::{abi_bindings::IComet, compound_watchlist::CompoundWatchList},
+    morpho::{abi_bindings::IMorphoBlue, morpho_watchlist::MorphoWatchList},
+    bootstrap::bootstrap_state::BootstrapState,
+
 };
 
+use sled::Db;
 
 #[async_trait::async_trait]
 pub trait Liquidator: Send + Sync {
@@ -94,6 +96,13 @@ pub struct CoreContracts<M>{
     pub morpho: IMorphoBlue<M>,
     pub comet: IComet<M>,
     pub flash_liq: IFlashLiquidator<M>
+}
+
+pub struct WatchLists {
+    aave_watchlist: Arc<AaveWatchList>,
+    morpho_watchlist: Arc<MorphoWatchList>,
+    comet_watchlist: Arc<CompoundWatchList>,
+    bootstrap_state: Arc<BootstrapState>
 }
 
 pub async fn execute_liq_tx<M: Middleware + 'static>(
@@ -237,6 +246,15 @@ pub fn fetch_contracts<M: Middleware + 'static>(client: Arc<M>) -> anyhow::Resul
         let morpho = IMorphoBlue::new(morpho_addr, client.clone());
 
         Ok(CoreContracts { aave, morpho, comet, flash_liq })
+}
+
+pub fn fetch_watchlists(db: Arc<Db>) -> anyhow::Result<WatchLists> {
+    Ok(WatchLists {
+        aave_watchlist: Arc::new(AaveWatchList::new(db.clone())?),
+        morpho_watchlist: Arc::new(MorphoWatchList::new(db.clone())?),
+        comet_watchlist: Arc::new(CompoundWatchList::new(db.clone())?),
+        bootstrap_state: Arc::new(BootstrapState::new(db)?),
+    })
 }
 
 

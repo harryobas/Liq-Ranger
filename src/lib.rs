@@ -7,6 +7,7 @@ mod liquidation_executor;
 mod watchlist_pruner;
 mod constants;
 mod profit_distributor;
+mod bootstrap_engine;
 
 use std::sync::Arc;
 
