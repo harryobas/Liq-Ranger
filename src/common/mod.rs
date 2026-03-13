@@ -36,7 +36,7 @@ use crate::{
     aave::{aave_watchlist::AaveWatchList, abi_bindings::IAaveV3Pool},
     compound::{abi_bindings::IComet, compound_watchlist::CompoundWatchList},
     morpho::{abi_bindings::IMorphoBlue, morpho_watchlist::MorphoWatchList},
-    bootstrap::bootstrap_state::BootstrapState,
+    bootstrap_engine::bootstrap_state::BootstrapState
 
 };
 

@@ -61,10 +61,7 @@ impl<M: Middleware + 'static> Bootstrap for MorphoBootstrap<M>  {
         while  start_block <= latest_block {
             let current_end = (start_block + batch_size).min(latest_block);
             
-            tracing::info!(
-            "Morpho bootstrap scanning {} -> {}",
-            start_block,
-            current_end);
+            tracing::info!("Morpho bootstrap scanning {} -> {}", start_block, current_end);
 
             let borrow_filter = self.morpho
                 .borrow_filter()
@@ -77,7 +74,6 @@ impl<M: Middleware + 'static> Bootstrap for MorphoBootstrap<M>  {
                 .to_block(current_end);
 
             let liq_filter = self.morpho
-
                 .liquidate_filter()
                 .from_block(start_block)
                 .to_block(current_end);
