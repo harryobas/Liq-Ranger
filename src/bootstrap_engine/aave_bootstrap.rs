@@ -93,7 +93,7 @@ impl<M: Middleware + 'static> Bootstrap  for AaveBootstrap<M> {
             }
 
             for ev in liqs.into_iter() {
-                if whitelist_reserves.contains(&ev.debt_asset) || whitelist_reserves.contains(&ev.collateral_asset){
+                if whitelist_reserves.contains(&ev.debt_asset) {
                     entries.insert((ev.user, ev.debt_asset));
                 }
             }

@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use tokio::sync::{
-    broadcast::Receiver,
-    watch,
-    Mutex,
-};
+use tokio::sync::{broadcast::Receiver, watch, Mutex};
 
-use crate::common::Liquidator;
+use crate::{
+    common::Liquidator,
+    constants
+
+};
 
 pub struct LiqExecutor {
     liquidators: Vec<Arc<dyn Liquidator>>,
@@ -21,7 +21,6 @@ impl LiqExecutor {
         liquidators: Vec<Arc<dyn Liquidator>>,
         receiver: Receiver<u64>,
         shutdown: watch::Receiver<bool>,
-        interval: u64,
     ) -> Self {
         let locks = liquidators
             .iter()
@@ -33,7 +32,7 @@ impl LiqExecutor {
             locks,
             receiver,
             shutdown,
-            interval,
+            interval: constants::LIQ_EXECUTOR_INTERVAL,
         }
     }
 
@@ -105,7 +104,7 @@ impl LiqExecutor {
                                 }
                             };
 
-                            if let Err(e) = liq.run().await {
+                            if let Err(e) = liq.run(block_number).await {
                                 tracing::error!("❌ Liquidator failed: {:?}", e);
                             }
 

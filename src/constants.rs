@@ -1,5 +1,7 @@
 use ethers::{
-    signers::{LocalWallet, Signer}, types::{Address, H256, U256}, utils::parse_ether
+     signers::{LocalWallet, Signer}, 
+     types::{Address, Bytes, H256, U256}, 
+     utils::parse_ether
 };
 use once_cell::sync::Lazy;
 use tokio::{
@@ -15,41 +17,35 @@ use dashmap::DashMap;
 
 // Shared
 pub const CHAIN_ID: u64 = 137;
-pub const DB_PATH: &str = "./sled_db";
-pub const BLOCK_INTERVAL: u64 = 3;
+pub const DB_PATH: &str = "./data/sled_db";
+pub const LIQ_EXECUTOR_INTERVAL: u64 = 3;
 pub const PRUNE_INTERVAL: u64 = 30;
-
-pub const FLASH_LIQUIDATOR: &str = "";
-pub const COMET: &str = "";
 
 pub const AAVE_DEPLOY_BLOCK: u64 = 25_700_000;
 pub const COMPOUND_DEPLOY_BLOCK: u64 = 42_000_000;
 pub const MORPHO_DEPLOY_BLOCK: u64 = 57_000_000;
 
-
-pub static TENDERLY_ACCESS_KEY: Lazy<String> = Lazy::new(|| {
-    load_tenderly_access_key()
+pub static FLASH_LIQUIDATOR: Lazy<Address> = Lazy::new(|| {
+    Address::from_str("0x46082c9F4ca0eF92c510984B612183211c0a27dE").expect("Failed")
 });
 
-pub const TENDERLY_ACCOUNT: &str = "harryobas";
-pub const TENDERLY_PROJECT: &str = "project";
 
-pub static USDC: Lazy<Address> = Lazy::new(|| 
+pub static LIQ_BYTECODE: Lazy<Bytes> = Lazy::new(|| {
+    let bytecode_str = include_str!("./abis/liquidator/flash_liquidator.bin");
+    Bytes::from_str(bytecode_str).unwrap_or(Bytes::new())
+});
+
+pub static USDC: Lazy<Address> = Lazy::new(||
     Address::from_str("0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359").expect("Failed")
 );
-pub static USDT: Lazy<Address> = Lazy::new(|| 
+pub static USDT: Lazy<Address> = Lazy::new(||
     Address::from_str("0xc2132D05D31c914a87C6611C10748AEb04B58e8F").expect("Failed")
 );
 pub static WPOL: Lazy<Address> = Lazy::new(||
     Address::from_str("0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270").expect("Failed")
 );
 
-pub static BREET_USDC: Lazy<Address> = Lazy::new(||
-    Address::from_str("0x46082c9F4ca0eF92c510984B612183211c0a27dE").expect("Failed")
-    
-);
-
-pub static BREET_USDT: Lazy<Address> = Lazy::new(|| 
+pub static BREET: Lazy<Address> = Lazy::new(||
     Address::from_str("0x46082c9F4ca0eF92c510984B612183211c0a27dE").expect("Failed")
 
 );
@@ -65,13 +61,11 @@ pub static PROFIT_DIST_ASSETS: Lazy<Vec<Address>> = Lazy::new(|| {
 
     profit_assets
 
-    
-});
 
+});
 
 pub static TOKEN_DECIMAL_CACHE: Lazy<DashMap<Address, u8>> = Lazy::new(|| DashMap::new() );
 pub static TOKEN_SYMBOL_CACHE: Lazy<DashMap<Address, String>> = Lazy::new(|| DashMap::new() );
-
 
 pub static PRIVATE_KEY: Lazy<SecretString> = Lazy::new(|| {
     SecretString::new(load_private_key().into())
@@ -79,6 +73,13 @@ pub static PRIVATE_KEY: Lazy<SecretString> = Lazy::new(|| {
 
 pub static RPC_URL: Lazy<String> = Lazy::new(|| {
     load_rpc_url()
+});
+
+pub static RPC_URL_HTTP: Lazy<String> = Lazy::new(|| {
+    match env::var("RPC_URL_HTTP") {
+        Ok(url) => url,
+        Err(_) => panic!("No RPC_URL_HTTP found. Please set RPC_URL_HTTP env var.")
+    }
 });
 
 pub static WALLET: Lazy<LocalWallet> = Lazy::new(|| {
@@ -92,7 +93,9 @@ pub static WALLET: Lazy<LocalWallet> = Lazy::new(|| {
 pub static GLOBAL_TASK_HANDLES: Lazy<Mutex<Vec<JoinHandle<()>>>> = Lazy::new(|| {Mutex::new(Vec::new())});
 
 // Morpho
-pub const MORPHO_BLUE: &str = "0x1bF0c2541F820E775182832f06c0B7Fc27A25f67"; 
+pub static  MORPHO_BLUE: Lazy<Address> = Lazy::new(|| {
+    Address::from_str("0x1bF0c2541F820E775182832f06c0B7Fc27A25f67").expect("Failed")
+});
 pub const VIRTUAL_ASSETS: u128 = 1;
 pub const VIRTUAL_SHARES: u128 = 1_000_000;
 
@@ -134,10 +137,18 @@ pub static MORPHO_MARKETS: Lazy<HashSet<H256>> = Lazy::new(|| {
 
     // Aave
 pub const HF_LIQUIDATION_THRESHOLD_BPS: u128 = 9_500; // 0.95
-pub const UIPOOL_DATA_PROVIDER: &str = "0xFa1A7c4a8A63C9CAb150529c26f182cBB5500944";
-pub const AAVE_V3_POOL: &str = "0x794a61358D6845594F94dc1DB02A252b5b4814aD";
-pub const AAVE_ORACLE: &str = "0xb023e699F5a33916Ea823A16485e259257cA8Bd1";
-pub const POOL_ADDRESS_PROVIDER: &str = "0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb";
+pub static UIPOOL_DATA_PROVIDER: Lazy<Address> = Lazy::new(||{
+    Address::from_str("0xFa1A7c4a8A63C9CAb150529c26f182cBB5500944").expect("Failed")
+});
+pub const AAVE_V3_POOL: Lazy<Address> = Lazy::new(||{
+    Address::from_str("0x794a61358D6845594F94dc1DB02A252b5b4814aD").expect("Failed")
+});
+pub const AAVE_ORACLE: Lazy<Address> = Lazy::new(||{
+    Address::from_str("0xb023e699F5a33916Ea823A16485e259257cA8Bd1").expect("Failed")
+});
+pub const POOL_ADDRESS_PROVIDER: Lazy<Address> = Lazy::new(||{
+    Address::from_str("0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb").expect("Failed")
+});
 
 pub static AAVE_RESERVES: Lazy<HashSet<Address>> = Lazy::new(|| {
     [
@@ -155,6 +166,25 @@ pub static AAVE_RESERVES: Lazy<HashSet<Address>> = Lazy::new(|| {
 pub static ATOKENS_ADDR: Lazy<DashMap<Address, Address>> = Lazy::new(|| {
     DashMap::new()
 
+});
+
+//compound
+
+pub static COMET_USDT: Lazy<Address> = Lazy::new(||
+    Address::from_str("0xaeB318360f27748Acb200CE616E389A6C9409a07").expect("Failed")
+);
+
+pub static COMPOUND_RESERVES: Lazy<HashSet<Address>> = Lazy::new(|| {
+    [
+        "0xfa68FB4628DFF1028CFEc22b4162FCcd0d45efb6",
+        "0x3A58a54C066FdC0f2D55FC9C89F0415C92eBf3C4",
+        "0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6",
+        "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
+        "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+    ]
+    .into_iter()
+    .map(|s| s.parse::<Address>().expect("invalid reserve address"))
+    .collect()
 });
 
 //helpers
@@ -178,7 +208,7 @@ fn pow10(exp: u32) -> U256 {
 }
 
 fn load_private_key() -> String {
-    
+
     match env::var("PRIVATE_KEY") {
         Ok(key) => {
             println!("⚠️ Loaded PRIVATE_KEY from environment variable.");
@@ -198,16 +228,5 @@ fn load_private_key() -> String {
         )
     }
 }
-
-fn load_tenderly_access_key() -> String {
-    match env::var("TENDERLY_ACCESS_KEY") {
-        Ok(key) => key,
-        Err(_) => panic!(
-            "No TENDERLY ACCESS KEY found. Please set TENDERLY ACCESS KEY env var."
-
-        )
-    }
-}
-
 
 

@@ -13,29 +13,25 @@ use std::sync::Arc;
  use watchlist_updater::AaveWatchListUpdater;
  use aave_liquidator::AaveLiquidator;
 
-use crate::common::{
-    self, AdminCmd, Config, Liquidator, task_manager::spawn_and_register};
+use crate::{aave::abi_bindings::IAaveV3Pool, common::{
+     AdminCmd, Config, Liquidator, task_manager::spawn_and_register}};
 use tokio::sync::{mpsc, watch};
 use ethers::providers::Middleware;
-
 
 
 pub async fn start_engine<M: Middleware  + 'static>(
     client: Arc<M>,
     shutdown_rx: watch::Receiver<bool>,
-    prune_rx: mpsc::Receiver<AdminCmd>
+    prune_rx: mpsc::Receiver<AdminCmd>,
+    watch_list: Arc<AaveWatchList>,
+    pool: Arc<IAaveV3Pool<M>>
     
 ) -> anyhow::Result<Arc<dyn Liquidator>>{
     let mut aave_config = AaveConfig::load()?;
 
      aave_config.populate_tokens(client.clone()).await?;
 
-    let pool = Arc::new(common::fetch_contracts(client.clone())?.aave);
-
     let aave_config = Arc::new(aave_config);
-
-    let db = Arc::new(sled::open(&aave_config.db_path)?);
-    let watch_list = Arc::new(AaveWatchList::new(db)?);
 
     let aave_liq = AaveLiquidator::new(
         aave_config.clone(),
@@ -51,7 +47,6 @@ pub async fn start_engine<M: Middleware  + 'static>(
         shutdown_rx.clone(), 
         prune_rx
     );
-
 
     spawn_and_register(async move {
         if let Err(e) = aave_updater.start().await {

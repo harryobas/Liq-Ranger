@@ -1,10 +1,5 @@
 use std::{collections::{HashMap, HashSet}, sync::Arc};
 use ethers::{providers::Middleware, signers::{LocalWallet, Signer}, types::Address};
-use super::{
-    abi_bindings::{
-        i_aave_v3_pool, 
-        IAaveV3Pool}
-    };
 
 use crate::{common::{self, Config}, constants};
 
@@ -31,12 +26,12 @@ impl Config for  AaveConfig  {
        
         Ok(AaveConfig { 
              wallet: constants::WALLET.clone(),
-             lending_pool: constants::AAVE_V3_POOL.parse::<Address>()?, 
-             aave_oracle: constants::AAVE_ORACLE.parse::<Address>()?, 
-             flash_liquidator: constants::FLASH_LIQUIDATOR.parse::<Address>()?, 
+             lending_pool: *constants::AAVE_V3_POOL, 
+             aave_oracle: *constants::AAVE_ORACLE, 
+             flash_liquidator: *constants::FLASH_LIQUIDATOR, 
              rpc_url: constants::RPC_URL.to_string(), 
-             ui_pool_data: constants::UIPOOL_DATA_PROVIDER.parse::<Address>()?, 
-             pool_address_provider: constants::POOL_ADDRESS_PROVIDER.parse::<Address>()?,
+             ui_pool_data: *constants::UIPOOL_DATA_PROVIDER, 
+             pool_address_provider: *constants::POOL_ADDRESS_PROVIDER,
              reserves: constants::AAVE_RESERVES.clone(),
              vdebt_tokens: HashMap::new(),
              chain_id: constants::CHAIN_ID,
@@ -65,7 +60,7 @@ impl AaveConfig {
 
         for reserve in &self.reserves {
             let pool = common::fetch_contracts(client.clone())?.aave;
-            let data: i_aave_v3_pool::ReserveData = pool.get_reserve_data(*reserve).call().await?;
+            let data = pool.get_reserve_data(*reserve).call().await?;
             let vdebt_token = data.variable_debt_token_address;
         
             vdebt_mapping.insert(*reserve, vdebt_token);

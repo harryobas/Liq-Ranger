@@ -182,10 +182,8 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
 
     /// Resolve Breet address
     fn breet_address_for(&self, asset: Address) -> Address {
-        if asset == *constants::USDC {
-            *constants::BREET_USDC
-        } else if asset == *constants::USDT {
-            *constants::BREET_USDT
+        if asset == *constants::USDC || asset == *constants::USDT {
+            *constants::BREET
         } else {
             Address::zero()
         }

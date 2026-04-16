@@ -19,13 +19,13 @@ pub struct MorphoConfig {
 
 impl Config for MorphoConfig {
      fn load() -> anyhow::Result<Self> {
-        let morpho_blue: Address = constants::MORPHO_BLUE.parse()?;
-        let flash_liquidator: Address = constants::FLASH_LIQUIDATOR.parse()?;
+        let morpho_blue: Address = *constants::MORPHO_BLUE;
+        let flash_liquidator: Address = *constants::FLASH_LIQUIDATOR;
         let morpho_markets = constants::MORPHO_MARKETS.clone();
         let rpc_url = constants::RPC_URL.clone();
         let wallet = constants::WALLET.clone();
         let db_path = constants::DB_PATH.into();
-        let block_interval = constants::BLOCK_INTERVAL;
+        let block_interval = constants::LIQ_EXECUTOR_INTERVAL;
         let keeper_address = wallet.address();
         let chain_id = constants::CHAIN_ID;
         let oracle_price_scale = constants::ORACLE_PRICE_SCALE.clone();

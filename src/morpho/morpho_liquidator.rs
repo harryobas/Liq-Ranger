@@ -1,7 +1,7 @@
 use anyhow::ensure;
 use ethers::{
-    providers::Middleware,
-    types::{Address, H256, U256},
+    signers::Signer,
+    providers::Middleware, types::{Address, H256, U256, Bytes}
 };
 
 use std::sync::Arc;
@@ -15,16 +15,10 @@ use super::{
     types::{LiqCandidate,Market, Position, HealthCheck, LiquidationMode},
 };
 
-use crate::common::{
-    Liquidator, 
-    SwapQueryParams, 
-    execute_liq_tx, 
-    get_token_decimals, 
-    paraswap::ParaSwapClient, 
-    simulate_liq_tx,
-    abi_bindings::{IFlashLiquidator, LiquidationParams}
+use crate::{common::{
+    Liquidator, SwapQueryParams, abi_bindings::{IFlashLiquidator, LiquidationParams}, create_simulation_sandbox, execute_liq_tx, get_token_decimals, paraswap::ParaSwapClient, simulate_liq_tx, simulation_sandbox::AnvilSandbox
     
-};
+}, constants};
 
 /// ─────────────────────────────────────────────
 /// Liquidation mode (Morpho invariant enforced)
@@ -271,7 +265,7 @@ impl<M> Liquidator for MorphoLiquidator<M>
 where
     M: Middleware + 'static,
 {
-    async fn run(&self) -> anyhow::Result<()> {
+    async fn run(&self, block_number: u64) -> anyhow::Result<()> {
         let candidates = self.generate_liquidations().await?;
         if candidates.is_empty() {
             return Ok(());
@@ -286,30 +280,36 @@ where
             })
             .collect::<Vec<_>>();
 
-        stream::iter(jobs)
-            .for_each_concurrent(2, |(loan_amt,  data)| async move {
-                if simulate_liq_tx(
-                    &self.flash_liquidator,
-                    self.client.clone(),
-                    loan_amt,
-                    data.clone(),
-                )
-                .await
-                .is_ok()
-                {
-                    if let Err(e) = execute_liq_tx(
-                        loan_amt,
-                        data,
-                        &self.flash_liquidator,
-                    )
-                    .await
-                    {
-                        tracing::error!("liquidation failed: {:?}", e);
-                    }
-                }
-            })
-            .await;
+        let sim_sandbox: AnvilSandbox = create_simulation_sandbox(block_number, &self.flash_liquidator).await?;
+        let snapshot_id = sim_sandbox.snapshot().await?;
 
+        for (loan_amt, liq_params) in &jobs {
+             match simulate_liq_tx(
+                &self.flash_liquidator, 
+                &sim_sandbox, 
+                *loan_amt, 
+                liq_params.clone(), 
+                snapshot_id
+            ).await{
+                Ok(res) => {
+                    if let Err(e) = execute_liq_tx(
+                        *loan_amt, 
+                        liq_params.clone(), 
+                        &self.flash_liquidator, 
+                        res.gas_used
+                    ).await{
+                        tracing::error!("liquidation failed: {:?}", e);
+
+                    }
+
+                }
+                Err(e) => {
+                    tracing::error!("Simulation failed: {:?}", e)
+                }
+            }      
+
+        }
         Ok(())
     }
 }
+

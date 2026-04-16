@@ -1,82 +1,123 @@
 mod aave;
-mod morpho;
-mod compound;
-mod common;
 mod block_watcher;
-mod liquidation_executor;
-mod watchlist_pruner;
-mod constants;
-mod profit_distributor;
 mod bootstrap_engine;
+mod common;
+mod compound;
+mod constants;
+mod liquidation_executor;
+mod morpho;
+mod profit_distributor;
+mod watchlist_pruner;
 
 use std::sync::Arc;
 
 use ethers::{
-    middleware::{SignerMiddleware, NonceManagerMiddleware},
+    middleware::{NonceManagerMiddleware, SignerMiddleware},
     providers::{Provider, Ws},
     signers::Signer,
 };
 
-use tokio::sync::{watch, mpsc, broadcast};
+use tokio::sync::{broadcast, mpsc, watch};
 
 use crate::{
     common::{
-        AdminCmd, 
-        task_manager::{shutdown_all_tasks, spawn_and_register}}, 
-        profit_distributor::ProfitDistributor, 
-        watchlist_pruner::WatchListPruner
-    };
+        fetch_contracts, fetch_watchlists,
+        task_manager::{shutdown_all_tasks, spawn_and_register},
+        AdminCmd,
+    },
+    profit_distributor::ProfitDistributor,
+    watchlist_pruner::WatchListPruner,
+};
+use bootstrap_engine::{
+    Bootstrap,
+    aave_bootstrap::AaveBootstrap, 
+    morpho_bootstrap::MorphoBootstrap, 
+    compound_bootstrap::CompoundBootstrap,
+};
 
 pub async fn start_liquidation_engines() -> anyhow::Result<()> {
-
     let ws = Ws::connect(constants::RPC_URL.as_str()).await?;
     let provider = Provider::new(ws);
 
-    let nonce_manager =
-        NonceManagerMiddleware::new(provider.clone(), constants::WALLET.address());
+    let nonce_manager = NonceManagerMiddleware::new(provider.clone(), constants::WALLET.address());
 
-    let client = Arc::new(
-        SignerMiddleware::new(nonce_manager, constants::WALLET.clone())
-    );
+    let client = Arc::new(SignerMiddleware::new(
+        nonce_manager,
+        constants::WALLET.clone(),
+    ));
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
 
-    let (block_tx, block_rx) = broadcast::channel::<u64>(16);
+    let (block_tx, block_rx) = broadcast::channel::<u64>(64);
 
-    let (aave_tx, aave_rx) = mpsc::channel::<AdminCmd>(16);
-    let (morpho_tx, morpho_rx) = mpsc::channel::<AdminCmd>(16);
+    let (aave_tx, aave_rx) = mpsc::channel::<AdminCmd>(64);
+    let (morpho_tx, morpho_rx) = mpsc::channel::<AdminCmd>(64);
+    let (comet_tx, comet_rx) = mpsc::channel::<AdminCmd>(64);
+
+    let db = Arc::new(sled::open(constants::DB_PATH)?);
+
+    let contracts = fetch_contracts(client.clone())?;
+    let w_lists = fetch_watchlists(db)?;
+
+    let bootstraps: Vec<Arc<dyn Bootstrap>> = vec![
+        Arc::new(AaveBootstrap::new(
+            contracts.aave.clone(),
+            w_lists.aave_watchlist.clone(),
+            w_lists.bootstrap_state.clone(),
+            client.clone(),
+        )),
+        Arc::new(MorphoBootstrap::new(
+            contracts.morpho.clone(),
+            w_lists.morpho_watchlist.clone(),
+            w_lists.bootstrap_state.clone(),
+            client.clone(),
+        )),
+        Arc::new(CompoundBootstrap::new(
+            contracts.comet.clone(),
+            w_lists.comet_watchlist.clone(),
+            
+        )),
+    ];
+
+    tracing::info!("Running bootstraps...");
+    bootstrap_engine::BootstrapExecutor { bootstraps }
+        .run_all()
+        .await?;
 
     // Start Aave + Morpho + Compound Engines
     let morpho_engine = morpho::start_engine(
         client.clone(),
         shutdown_rx.clone(),
-        morpho_rx,                    
-    ).await?;
+        morpho_rx,
+        w_lists.morpho_watchlist.clone(),
+        contracts.flash_liq.clone(),
+        contracts.morpho.clone(),
+    )
+    .await?;
 
     let aave_engine = aave::start_engine(
         client.clone(),
         shutdown_rx.clone(),
-        aave_rx,                      
-    ).await?;
+        aave_rx,
+        w_lists.aave_watchlist.clone(),
+        Arc::new(contracts.aave.clone()),
+    )
+    .await?;
 
-    let liquidators = vec![morpho_engine, aave_engine];
-
-    let block_watcher = block_watcher::BlockWatcher::new(
+    let compound_engine = compound::start_engine(
         client.clone(),
-        block_tx,
+        w_lists.comet_watchlist.clone(),
+        contracts.comet,
         shutdown_rx.clone(),
-    );
+        comet_rx,
+    )
+    .await?;
 
-    spawn_and_register(async move {
-        if let Err(e) = block_watcher.start().await {
-            tracing::error!("❌ Block watcher failed: {:?}", e);
-        }
-    });
+    let liquidators = vec![morpho_engine, aave_engine, compound_engine];
 
     let executor = liquidation_executor::LiqExecutor::new(
         liquidators,
-        block_rx.resubscribe(),   // 👈 separate receiver
+        block_rx.resubscribe(), // 👈 separate receiver
         shutdown_rx.clone(),
-        constants::BLOCK_INTERVAL,
     );
 
     spawn_and_register(async move {
@@ -90,7 +131,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         morpho_tx.clone(),
         block_rx.resubscribe(),
         shutdown_rx.clone(),
-        constants::PRUNE_INTERVAL
+        constants::PRUNE_INTERVAL,
     );
 
     spawn_and_register(async move {
@@ -99,18 +140,22 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         }
     });
 
-    let f_liq = common::fetch_contracts(client.clone())?.flash_liq; 
+    let f_liq = Arc::new(contracts.flash_liq);
 
-    let profit_distributor = Arc::new(
-        ProfitDistributor::new(
-        client.clone(), 
-        Arc::new(f_liq))
-    );
+    let profit_distributor = Arc::new(ProfitDistributor::new(client.clone(), f_liq.clone()));
 
     spawn_and_register(async move {
         if let Err(e) = profit_distributor.start().await {
-             tracing::error!("❌ Profit_distributor failed: {:?}", e);
+            tracing::error!("❌ Profit_distributor failed: {:?}", e);
+        }
+    });
 
+    let block_watcher =
+        block_watcher::BlockWatcher::new(client.clone(), block_tx, shutdown_rx.clone());
+
+    spawn_and_register(async move {
+        if let Err(e) = block_watcher.start().await {
+            tracing::error!("❌ Block watcher failed: {:?}", e);
         }
     });
 

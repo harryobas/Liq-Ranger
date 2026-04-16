@@ -131,6 +131,7 @@ impl<M: Middleware + Send + Sync + 'static> AaveWatchListUpdater<M> {
                 }
                 self.remove_if_no_debt(f.user, f.debt_asset).await?;
             }
+                _ => {}
 
         }
 

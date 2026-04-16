@@ -5,27 +5,22 @@ use super::{abi_bindings::{
     UiPoolDataProvider
 }, helpers::{
     select_best_collateral, 
-    compute_debt
+    compute_debt_to_cover,
 }, types::LiquidationCandidate, 
 aave_config::AaveConfig, 
 aave_watchlist::AaveWatchList};
 
 use anyhow::ensure;
 use ethers::{
-    providers::Middleware, types::{Address, U256}
+    signers::Signer,
+    providers::Middleware, types::{Address, Bytes, U256}
 };
 
 use std::sync::Arc;
 
-use crate::common::{
-    Liquidator, 
-    SwapQueryParams, 
-    abi_bindings::{IFlashLiquidator, LiquidationParams},
-     execute_liq_tx, 
-     get_token_decimals,  
-     paraswap::ParaSwapClient, 
-     simulate_liq_tx
-};
+use crate::{common::{
+    Liquidator, SwapQueryParams, abi_bindings::{IFlashLiquidator, LiquidationParams}, create_simulation_sandbox, execute_liq_tx, get_token_decimals, paraswap::ParaSwapClient, simulate_liq_tx, simulation_sandbox::AnvilSandbox
+}, constants};
 use futures_util::{self, StreamExt, stream}; 
 
 pub struct AaveLiquidator<M: Middleware + 'static> {
@@ -119,7 +114,7 @@ impl<M: Middleware> AaveLiquidator<M> {
             .get(&reserve)
             .ok_or_else(|| anyhow::anyhow!("Missing vDebt"))?;
 
-         let debt_to_cover = compute_debt(
+         let debt_to_cover = compute_debt_to_cover(
             v_debt,
             borrower,
             hf,
@@ -190,10 +185,9 @@ impl<M: Middleware> AaveLiquidator<M> {
 impl<M> Liquidator for AaveLiquidator<M>
 where
     M: Middleware + 'static,
-    {
-    
-        async fn run(&self) -> anyhow::Result<()> {
-             let candidates = self.generate_liquidations().await?;
+{
+    async fn run(&self, block_number: u64) -> anyhow::Result<()> {
+        let candidates = self.generate_liquidations().await?;
         if candidates.is_empty() {
             return Ok(());
         }
@@ -207,31 +201,38 @@ where
             })
             .collect::<Vec<_>>();
 
-         stream::iter(jobs)
-            .for_each_concurrent(2, |(loan_amt, data)| async move {
-                if simulate_liq_tx(
-                    &self.flash_liquidator,
-                    self.client.clone(),
-                    loan_amt,
-                    data.clone(),
-                )
-                .await
-                .is_ok()
-                {
+        let sim_sandbox = create_simulation_sandbox(block_number, &self.flash_liquidator).await?;
+        let snapshot_id = sim_sandbox.snapshot().await?;
+
+        for (loan_amt, liq_params) in &jobs {
+            
+            match simulate_liq_tx(
+                &self.flash_liquidator,
+                &sim_sandbox,
+                *loan_amt,
+                liq_params.clone(),
+                snapshot_id, 
+            )
+            .await
+            {
+                Ok(res) => {
                     if let Err(e) = execute_liq_tx(
-                        loan_amt,
-                        data.clone(),
+                        *loan_amt,
+                        liq_params.clone(),
                         &self.flash_liquidator,
+                        res.gas_used,
                     )
                     .await
                     {
-                        tracing::error!("liquidation failed: {:?}", e);
+                        tracing::error!("Liquidation execution failed: {:?}", e);
                     }
                 }
-            })
-            .await;
+                Err(e) => {
+                    tracing::error!("Simulation failed for loan amount {}: {:?}", loan_amt, e);
+                }
+            }
+        }
 
         Ok(())
-
-        }
     }
+}

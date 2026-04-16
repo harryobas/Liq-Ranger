@@ -1,8 +1,9 @@
 use std::sync::Arc;
 use anyhow::{Result, ensure};
 use ethers::{
+    signers::Signer,
     providers::Middleware,
-    types::{U256, Address},
+    types::{Address, Bytes, U256},
 };
 use futures_util::{stream, StreamExt};
 
@@ -15,14 +16,17 @@ use super::{
 };
 
 use crate::{common::{
-    self,
-    Liquidator, 
-    SwapQueryParams, 
-    abi_bindings::{IFlashLiquidator, LiquidationParams}, 
+    self, Liquidator, 
+    SwapQueryParams, abi_bindings::{
+        IFlashLiquidator, 
+        LiquidationParams
+    },
+    create_simulation_sandbox, 
     execute_liq_tx, 
     get_token_decimals, 
     paraswap::ParaSwapClient, 
-    simulate_liq_tx
+    simulate_liq_tx, 
+    simulation_sandbox::AnvilSandbox
 }, constants};
 
 pub struct CompoundLiquidator<M: Middleware + 'static> {
@@ -150,32 +154,30 @@ impl<M: Middleware + 'static> CompoundLiquidator<M> {
     /// Generates all profitable arbitrage opportunities
     async fn generate_arbs(&self) -> Result<Vec<BuyCollateralParams>> {
 
-
     let snapshot = self.watch_list.snapshot();
     if snapshot.is_empty() {
         return Ok(vec![]);
     }
 
+    // Fetch global state ONCE per block
     let base_asset = self.comet.base_token().call().await?;
+    let reserves_i256 = self.comet.get_reserves().call().await?;
+    let target_reserves = self.comet.target_reserves().call().await?;
+
+    let base_reserves = if reserves_i256.is_negative() {
+        U256::zero()
+    } else {
+        reserves_i256.into_raw()
+    };
+
+    if base_reserves >= target_reserves {
+        return Ok(vec![]);
+    }
+
+    let deficit = target_reserves - base_reserves;
 
     let results: Vec<_> = stream::iter(snapshot)
         .map(|(collateral_asset, seized_amount)| async move {
-
-            // fetch fresh reserves
-            let reserves_i256 = self.comet.get_reserves().call().await?;
-            let target_reserves = self.comet.target_reserves().call().await?;
-
-            let base_reserves = if reserves_i256.is_negative() {
-                U256::zero()
-            } else {
-                reserves_i256.into_raw()
-            };
-
-            if base_reserves >= target_reserves {
-                return Ok(None);
-            }
-
-            let deficit = target_reserves - base_reserves;
 
             self.analyze_opportunity(
                 collateral_asset,
@@ -204,7 +206,7 @@ impl<M> Liquidator for CompoundLiquidator<M>
 where
     M: Middleware + 'static,
 {
-    async fn run(&self) -> Result<()> {
+    async fn run(&self, block_number: u64) -> Result<()> {
         let opportunities = self.generate_arbs().await?;
         if opportunities.is_empty() {
             return Ok(());
@@ -219,31 +221,36 @@ where
             })
             .collect::<Vec<_>>();
 
-        // Execute sequentially to avoid nonce conflicts
-        stream::iter(jobs)
-            .for_each_concurrent(2, |(debt, data)| async move {
-                if simulate_liq_tx(
-                    &self.flash_liquidator,
-                    self.client.clone(),
-                    debt,
-                    data.clone(),
-                )
-                .await
-                .is_ok()
-                {
+        let sim_sandbox = create_simulation_sandbox(block_number, &self.flash_liquidator).await?;
+        let snapshot_id = sim_sandbox.snapshot().await?;
+
+        for (debt, liq_params) in jobs {
+            match simulate_liq_tx(
+                &self.flash_liquidator, 
+                &sim_sandbox, 
+                debt, 
+                liq_params.clone(), 
+                snapshot_id
+            ).await {
+                Ok(res) => {
                     if let Err(e) = execute_liq_tx(
-                        debt,
-                        data.clone(),
-                        &self.flash_liquidator,
-                    )
-                    .await
-                    {
-                        tracing::error!("buyCollateral arb failed: {:?}", e);
+                        debt, 
+                        liq_params.clone(), 
+                        &self.flash_liquidator, 
+                        res.gas_used
+                    ).await{
+                          tracing::error!("liquidation failed: {:?}", e);
                     }
                 }
-            })
-            .await;
+                Err(e) => {
+                    tracing::error!("Simulation failed: {:?}", e)
+                }
 
-        Ok(())
-    }
+                }
+            }
+
+            Ok(())
+
+        }
+
 }

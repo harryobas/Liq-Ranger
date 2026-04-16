@@ -4,7 +4,7 @@ use ethers::{prelude::abigen, };
 
 abigen!(
     IMorphoBlue,
-    "abis/morpho/morpho_blue.json",
+    "src/abis/morpho/morpho_blue.json",
     event_derives(serde::Deserialize, serde::Serialize)
 );
 

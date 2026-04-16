@@ -1,73 +1,63 @@
-
+pub mod abi_bindings;
+pub mod liq_data;
 pub mod paraswap;
 pub mod task_manager;
-pub mod liq_data;
-pub mod abi_bindings;
+pub mod simulation_sandbox;
 
-use ethers::signers::Signer;
-use ethers::types::Address;
 
-use std::{sync::Arc, str::FromStr};
-use ethers::providers::Middleware;
-
-use ethers::{ 
-    utils::hex,
-    types::{Bytes, U256, H256 as TxHash}
+use ethers::{
+    providers::Middleware,
+    signers::Signer,
+    types::{Address, Bytes, H256 as TxHash, U256}
 };
 
-use tenderly_rs::{
-    TraceResponse,
-    Network, 
-    Tenderly,
-    TenderlyConfiguration,
-    executors::types::{TransactionParameters, SimulationParameters}
-};
+use std::{str::FromStr, sync::Arc};
 
 use crate::{
-    constants::{
-        self,
-        TOKEN_DECIMAL_CACHE, 
-        TENDERLY_ACCESS_KEY, 
-        TENDERLY_PROJECT, 
-        TENDERLY_ACCOUNT,
-        TOKEN_SYMBOL_CACHE
-    }, 
-    common::abi_bindings::{IERC20, IFlashLiquidator, LiquidationParams},
     aave::{aave_watchlist::AaveWatchList, abi_bindings::IAaveV3Pool},
+    bootstrap_engine::bootstrap_state::BootstrapState,
+    common::{abi_bindings::{IERC20, IFlashLiquidator, LiquidationParams}, simulation_sandbox::{AnvilSandbox, SimResult}},
     compound::{abi_bindings::IComet, compound_watchlist::CompoundWatchList},
+    constants::{self, TOKEN_DECIMAL_CACHE, TOKEN_SYMBOL_CACHE},
     morpho::{abi_bindings::IMorphoBlue, morpho_watchlist::MorphoWatchList},
-    bootstrap_engine::bootstrap_state::BootstrapState
-
 };
 
 use sled::Db;
 
 #[async_trait::async_trait]
 pub trait Liquidator: Send + Sync {
-    async fn run(&self) -> anyhow::Result<()>;
-
+    async fn run(&self, block_number: u64) -> anyhow::Result<()>;
 }
 
 #[async_trait::async_trait]
 pub trait WatchList<T>: Sync + Send {
-     async fn remove(&self, item: T) -> anyhow::Result<()>;
-     async fn add(&self, item: T) -> anyhow::Result<()>;     
+    async fn remove(&self, item: T) -> anyhow::Result<()>;
+    async fn add(&self, item: T) -> anyhow::Result<()>;
 }
 
 pub trait Config: Send + Sync {
     fn load() -> anyhow::Result<Self>
     where
         Self: Sized;
-    
+
     fn keeper_address(&self) -> Address;
     fn chain_id(&self) -> u64;
 }
 
 #[async_trait::async_trait]
-pub trait LiquidationContract<M: Middleware + 'static>: Send + Sync{
+pub trait LiquidationContract<M: Middleware + 'static>: Send + Sync {
     fn address(&self) -> Address;
-    async fn execute_tx(&self, flash_amt: U256,  liq_params: LiquidationParams,) -> anyhow::Result<TxHash>;
-    fn extract_calldata(&self, flash_amt: U256,  liq_params: LiquidationParams) -> anyhow::Result<Bytes>;
+    async fn execute_tx(
+        &self,
+        flash_amt: U256,
+        liq_params: LiquidationParams,
+        gas_limit: U256
+    ) -> anyhow::Result<TxHash>;
+    fn extract_calldata(
+        &self,
+        flash_amt: U256,
+        liq_params: LiquidationParams,
+    ) -> anyhow::Result<Bytes>;
 }
 
 /// Swap query parameters
@@ -88,123 +78,73 @@ pub struct SwapQueryParams {
 pub enum AdminCmd {
     Prune,
     StatusCheck,
-    
 }
 
-pub struct CoreContracts<M>{
+pub struct CoreContracts<M> {
     pub aave: IAaveV3Pool<M>,
     pub morpho: IMorphoBlue<M>,
     pub comet: IComet<M>,
-    pub flash_liq: IFlashLiquidator<M>
+    pub flash_liq: IFlashLiquidator<M>,
 }
 
 pub struct WatchLists {
-    aave_watchlist: Arc<AaveWatchList>,
-    morpho_watchlist: Arc<MorphoWatchList>,
-    comet_watchlist: Arc<CompoundWatchList>,
-    bootstrap_state: Arc<BootstrapState>
+    pub aave_watchlist: Arc<AaveWatchList>,
+    pub morpho_watchlist: Arc<MorphoWatchList>,
+    pub comet_watchlist: Arc<CompoundWatchList>,
+    pub bootstrap_state: Arc<BootstrapState>,
 }
 
 pub async fn execute_liq_tx<M: Middleware + 'static>(
     loan_amt: U256,
     liq_params: LiquidationParams,
-    flash_liq: &dyn LiquidationContract<M>
+    flash_liq: &dyn LiquidationContract<M>,
+    gas_limit: U256
 ) -> anyhow::Result<TxHash> {
-    flash_liq.execute_tx(loan_amt,  liq_params).await
+    flash_liq.execute_tx(loan_amt, liq_params, gas_limit).await
 }
 
 pub async fn simulate_liq_tx<M: Middleware + 'static>(
-    flash_liq: &dyn LiquidationContract<M>, 
-    provider: Arc<M>,
+    flash_liq: &dyn LiquidationContract<M>,
+    sim: &AnvilSandbox,
     loan_amt: U256,
-    liq_params: LiquidationParams
-) -> anyhow::Result<()>{
-    // 1. Initialize Tenderly SDK client
-    let tenderly = Tenderly::new(TenderlyConfiguration::new(
-        TENDERLY_ACCOUNT.to_string(), 
-        TENDERLY_PROJECT.to_string(),
-        TENDERLY_ACCESS_KEY.clone(),
-        Network::Polygon
-    ))?;
+    liq_params: LiquidationParams,
+    snap_shot: U256,
+) -> anyhow::Result<SimResult> {
 
-    // 2. Build the simulation parameters from the contract call
     let target_address = flash_liq.address();
-    let call_data = flash_liq.extract_calldata(loan_amt, liq_params)?;
+    let keeper_address = constants::WALLET.address();
 
-    let gas_price = provider.get_gas_price().await?;
+    let calldata = flash_liq.extract_calldata(loan_amt, liq_params)?;
 
-    let transaction = TransactionParameters {
-        from: constants::WALLET.address().to_string(), // Your bot's address
-        to: target_address.to_string(),
-        gas: 0, // Tenderly estimates this
-        gas_price: gas_price.to_string(),
-        value: "0".to_string(),
-        input: format!("0x{}", hex::encode(call_data)),
-        max_fee_per_gas: None,
-        max_priority_fee_per_gas: None,
-        access_list: None,
-    };
-
-    let simulation = SimulationParameters {
-        transaction,
-        block_number: provider.get_block_number().await.map(|v| v.as_u64())?,//None, // Simulate on latest block
-        overrides: None, // You can use state overrides here to test edge cases
-    };
-
-    // 3. Execute the simulation
-    match tenderly.simulator.simulate_transaction(&simulation).await {
-        Ok(sim_result) => {
-            if sim_result.status == Some(true) {
-                tracing::info!(
-                    "Tenderly simulation successful. Gas used: {:?}, Block nimber: {:?} Logs: {:?}", 
-                    sim_result.gas_used.unwrap_or(0), sim_result.block_number, sim_result.logs);
-                // Optional: Calculate estimated profit from simulation traces here
-            } else {
-                if let Some(traces) = &sim_result.trace {
-                    if let Some(error_msg) = extract_error_from_trace(traces)  {
-                        tracing::warn!("Simulation failed: {}", error_msg);
-                        return Err(anyhow::anyhow!("Simulation failed: {}", error_msg));
-                        
-                    }
-                }
-            }
-        }
+    let result = match sim.simulate_tx(keeper_address, target_address, calldata, U256::zero()).await{
+        Ok(res) => res,
         Err(e) => {
-            tracing::error!(error = ?e, "Tenderly simulation failed");
-            return Err(e.into());
+            sim.revert(snap_shot)
+              .await
+              .map_err(|e| anyhow::anyhow!("CRITICAL: failed to revert snapshot: {:?}", e))?;
+
+            return Err(anyhow::anyhow!("Simulation failed: {:?}", e));
         }
+    };
+
+   
+    sim.revert(snap_shot)
+      .await
+      .map_err(|e| anyhow::anyhow!("CRITICAL: failed to revert snapshot: {:?}", e))?;
+
+    if !result.success {
+        let reason = result.revert_reason.clone().unwrap_or_else(|| "Unknown Revert".to_string());
+        return Err(anyhow::anyhow!("Simulation Reverted: {}", reason));
     }
 
-    Ok(())
+    Ok(result)
 
-
-}
-
-fn extract_error_from_trace(traces: &[TraceResponse]) -> Option<String> {
-    for trace in traces {
-        // Check for any error fields in the trace
-        if let Some(error) = &trace.error {
-            return Some(format!("Trace error: {}", error));
-        }
-        if let Some(error_reason) = &trace.error_reason {
-            return Some(format!("Error reason: {}", error_reason));
-        }
-        if let Some(error_messages) = &trace.error_messages {
-            return Some(format!("Error messages: {}", error_messages));
-        }
-        
-        // Also check if this is a CALL that reverted (common pattern)
-        if trace.r#type.as_deref() == Some("CALL") && trace.output.as_deref() == Some("0x") {
-            return Some("Call reverted with empty output".to_string());
-        }
-    }
     
-    None
 }
 
 pub async fn get_token_decimals<M: Middleware + 'static>(
     token: Address,
-    provider: Arc<M>
+    provider: Arc<M>,
 ) -> anyhow::Result<u8> {
     if let Some(dec) = TOKEN_DECIMAL_CACHE.get(&token) {
         return Ok(dec.value().clone());
@@ -215,12 +155,11 @@ pub async fn get_token_decimals<M: Middleware + 'static>(
 
     TOKEN_DECIMAL_CACHE.insert(token, result);
     Ok(result)
-
 }
 
 pub async fn get_token_symbol<M: Middleware + 'static>(
-    token: Address, 
-    provider: Arc<M>
+    token: Address,
+    provider: Arc<M>,
 ) -> anyhow::Result<String> {
     if let Some(dec) = TOKEN_SYMBOL_CACHE.get(&token) {
         return Ok(dec.value().clone());
@@ -231,21 +170,27 @@ pub async fn get_token_symbol<M: Middleware + 'static>(
 
     TOKEN_SYMBOL_CACHE.insert(token, result.clone());
     Ok(result)
-    
 }
 
-pub fn fetch_contracts<M: Middleware + 'static>(client: Arc<M>) -> anyhow::Result<CoreContracts<M>> {
-        let liq_addr = Address::from_str(constants::FLASH_LIQUIDATOR)?;
-        let aave_addr = Address::from_str(constants::AAVE_V3_POOL)?;
-        let comet_addr = Address::from_str(constants::COMET)?;
-        let morpho_addr = Address::from_str(constants::MORPHO_BLUE)?;
+pub fn fetch_contracts<M: Middleware + 'static>(
+    client: Arc<M>,
+) -> anyhow::Result<CoreContracts<M>> {
+    let liq_addr = *constants::FLASH_LIQUIDATOR;
+    let aave_addr = *constants::AAVE_V3_POOL;
+    let comet_addr = *constants::COMET_USDT;
+    let morpho_addr = *constants::MORPHO_BLUE;
 
-        let flash_liq = IFlashLiquidator::new(liq_addr, client.clone());
-        let aave = IAaveV3Pool::new(aave_addr, client.clone());
-        let comet = IComet::new(comet_addr, client.clone());
-        let morpho = IMorphoBlue::new(morpho_addr, client.clone());
+    let flash_liq = IFlashLiquidator::new(liq_addr, client.clone());
+    let aave = IAaveV3Pool::new(aave_addr, client.clone());
+    let comet = IComet::new(comet_addr, client.clone());
+    let morpho = IMorphoBlue::new(morpho_addr, client.clone());
 
-        Ok(CoreContracts { aave, morpho, comet, flash_liq })
+    Ok(CoreContracts {
+        aave,
+        morpho,
+        comet,
+        flash_liq,
+    })
 }
 
 pub fn fetch_watchlists(db: Arc<Db>) -> anyhow::Result<WatchLists> {
@@ -257,12 +202,15 @@ pub fn fetch_watchlists(db: Arc<Db>) -> anyhow::Result<WatchLists> {
     })
 }
 
+pub async fn create_simulation_sandbox<M: Middleware + 'static>(block_number: u64, f_liq: &IFlashLiquidator<M>) -> anyhow::Result<AnvilSandbox> {
+    let sim_sandbox = AnvilSandbox::new(&*constants::RPC_URL_HTTP, block_number)?;
+    let bytecode = constants::LIQ_BYTECODE.clone();
+    let target_address = f_liq.address();
+    let keeper_address = constants::WALLET.address();
 
+    sim_sandbox.set_code(target_address, bytecode).await?;
+    sim_sandbox.impersonate(keeper_address).await?;
+    sim_sandbox.set_balance(keeper_address, U256::exp10(18) * 50).await?;
 
-
-
-
-   
-
-
-    
+    Ok(sim_sandbox)
+}

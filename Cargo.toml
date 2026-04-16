@@ -31,5 +31,26 @@ tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 secrecy = { version = "0.10.3", features = ["serde"] }
 tokio-cron-scheduler = "0.15.1"
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "sqlite", "macros", "migrate", "chrono"] }
+chrono = { version = "0.4", features = ["serde"] }
 
+[profile.release]
+# 1. Level 'z' aggressively optimizes for binary size.
+# Alternative: 's' for size-conscious but slightly faster execution.
+opt-level = "z"     
 
+# 2. Enables "Link Time Optimization" to remove dead code across crates.
+# Use "fat" for maximum cross-crate optimization.
+lto = "fat"         
+
+# 3. Reduces parallel processing to allow the compiler to see the whole program.
+# Greatly improves code reduction, but makes compilation slower.
+codegen-units = 1   
+
+# 4. Removes debug symbols and symbol tables automatically.
+# This is usually the single biggest size saver.
+strip = true        
+
+# 5. Removes "unwinding" logic (no stack traces on panic).
+# Smaller binary, but the bot will immediately abort on error.
+panic = "abort"
