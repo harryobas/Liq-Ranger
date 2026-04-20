@@ -14,8 +14,8 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1.0.98"
 dotenv = "0.15.0"
-ethers = {version = "2.0.14", features = ["rustls","ws"]}
-reqwest = {version = "0.12.20", features = ["json"]}
+ethers = {version = "2.0.14", features = ["rustls","ws"] }
+reqwest = {version = "0.12.20", default-features = false, features = ["json", "rustls-tls"]}
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 tokio = { version = "1.45.1", features = ["full"] }
@@ -23,7 +23,6 @@ env_logger = "0.11.8"
 futures-util = "0.3.31"
 async-trait = "0.1.89"
 once_cell = "1.21.3"
-tenderly-rs = "0.1.0"
 dashmap = "6.1.0"
 sled = "0.34.7"
 bincode = "1.3"
@@ -37,11 +36,11 @@ chrono = { version = "0.4", features = ["serde"] }
 [profile.release]
 # 1. Level 'z' aggressively optimizes for binary size.
 # Alternative: 's' for size-conscious but slightly faster execution.
-opt-level = "z"     
+opt-level = 3     
 
 # 2. Enables "Link Time Optimization" to remove dead code across crates.
 # Use "fat" for maximum cross-crate optimization.
-lto = "fat"         
+lto = "thin"         
 
 # 3. Reduces parallel processing to allow the compiler to see the whole program.
 # Greatly improves code reduction, but makes compilation slower.

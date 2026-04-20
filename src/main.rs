@@ -1,7 +1,7 @@
 use dotenv::dotenv;
 use tracing_subscriber::{fmt, EnvFilter};
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread")]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
 

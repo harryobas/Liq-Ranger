@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  liq-ranger:
+    image: ${DOCKER_IMAGE}
+    container_name: liq-ranger
+    volumes:
+      - ./data:/home/scavenger/app/data
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment:
+      RPC_URL: ${RPC_URL}
+      PRIVATE_KEY: ${PRIVATE_KEY}
+      RPC_URL_HTTP: ${RPC_URL_HTTP}
+    
+

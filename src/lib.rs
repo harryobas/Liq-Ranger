@@ -9,7 +9,7 @@ mod morpho;
 mod profit_distributor;
 mod watchlist_pruner;
 
-use std::sync::Arc;
+use std::{fs, path::Path, sync::Arc};
 
 use ethers::{
     middleware::{NonceManagerMiddleware, SignerMiddleware},
@@ -52,6 +52,13 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
     let (aave_tx, aave_rx) = mpsc::channel::<AdminCmd>(64);
     let (morpho_tx, morpho_rx) = mpsc::channel::<AdminCmd>(64);
     let (comet_tx, comet_rx) = mpsc::channel::<AdminCmd>(64);
+
+    if let Some(parent) = Path::new(constants::DB_PATH).parent() {
+        if !parent.exists() {
+            tracing::info!("Creating database directory at {:?}", parent);
+            fs::create_dir_all(parent)?;
+        }
+    }
 
     let db = Arc::new(sled::open(constants::DB_PATH)?);
 

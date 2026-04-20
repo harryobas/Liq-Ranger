@@ -22,7 +22,7 @@ pub const LIQ_EXECUTOR_INTERVAL: u64 = 3;
 pub const PRUNE_INTERVAL: u64 = 30;
 
 pub const AAVE_DEPLOY_BLOCK: u64 = 25_700_000;
-pub const COMPOUND_DEPLOY_BLOCK: u64 = 42_000_000;
+//pub const COMPOUND_DEPLOY_BLOCK: u64 = 42_000_000;
 pub const MORPHO_DEPLOY_BLOCK: u64 = 57_000_000;
 
 pub static FLASH_LIQUIDATOR: Lazy<Address> = Lazy::new(|| {
@@ -140,13 +140,13 @@ pub const HF_LIQUIDATION_THRESHOLD_BPS: u128 = 9_500; // 0.95
 pub static UIPOOL_DATA_PROVIDER: Lazy<Address> = Lazy::new(||{
     Address::from_str("0xFa1A7c4a8A63C9CAb150529c26f182cBB5500944").expect("Failed")
 });
-pub const AAVE_V3_POOL: Lazy<Address> = Lazy::new(||{
+pub static  AAVE_V3_POOL: Lazy<Address> = Lazy::new(||{
     Address::from_str("0x794a61358D6845594F94dc1DB02A252b5b4814aD").expect("Failed")
 });
-pub const AAVE_ORACLE: Lazy<Address> = Lazy::new(||{
+pub static  AAVE_ORACLE: Lazy<Address> = Lazy::new(||{
     Address::from_str("0xb023e699F5a33916Ea823A16485e259257cA8Bd1").expect("Failed")
 });
-pub const POOL_ADDRESS_PROVIDER: Lazy<Address> = Lazy::new(||{
+pub static  POOL_ADDRESS_PROVIDER: Lazy<Address> = Lazy::new(||{
     Address::from_str("0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb").expect("Failed")
 });
 
@@ -211,7 +211,6 @@ fn load_private_key() -> String {
 
     match env::var("PRIVATE_KEY") {
         Ok(key) => {
-            println!("⚠️ Loaded PRIVATE_KEY from environment variable.");
             key
         }
         Err(_) => panic!(

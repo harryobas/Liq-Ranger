@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  liq-ranger:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./data:/home/scavenger/app/data
+
+    container_name: liq-ranger
+    restart: unless-stopped
+    
+    # Optional if you want to run interactively for debugging
+    stdin_open: true
+    tty: true
+
+  
