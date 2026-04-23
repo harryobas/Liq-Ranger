@@ -136,6 +136,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
     let mut watchlist_pruner = WatchListPruner::new(
         aave_tx.clone(),
         morpho_tx.clone(),
+        comet_tx.clone(),
         block_rx.resubscribe(),
         shutdown_rx.clone(),
         constants::PRUNE_INTERVAL,

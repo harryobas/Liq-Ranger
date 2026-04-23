@@ -5,6 +5,7 @@ use crate::common::AdminCmd;
 pub struct WatchListPruner {
     aave_cmd: mpsc::Sender<AdminCmd>,
     morpho_cmd: mpsc::Sender<AdminCmd>,
+    comet_cmd: mpsc::Sender<AdminCmd>,
     block_rx: broadcast::Receiver<u64>,
     shutdown: watch::Receiver<bool>,
     interval: u64,
@@ -14,6 +15,7 @@ impl WatchListPruner {
     pub fn new(
         aave_cmd: mpsc::Sender<AdminCmd>,
         morpho_cmd: mpsc::Sender<AdminCmd>,
+        comet_cmd: mpsc::Sender<AdminCmd>,
         block_rx: broadcast::Receiver<u64>,
         shutdown: watch::Receiver<bool>,
         interval: u64,
@@ -21,6 +23,7 @@ impl WatchListPruner {
         Self {
             aave_cmd,
             morpho_cmd,
+            comet_cmd,
             block_rx,
             shutdown,
             interval,
@@ -41,6 +44,7 @@ impl WatchListPruner {
                             if block_number % self.interval == 0 {
                                 let aave = self.aave_cmd.clone();
                                 let morpho = self.morpho_cmd.clone();
+                                let comet = self.comet_cmd.clone();
 
                                 tokio::spawn(async move {
                                     tracing::info!(
@@ -54,6 +58,9 @@ impl WatchListPruner {
 
                                     if let Err(e) = morpho.send(AdminCmd::Prune).await {
                                         tracing::error!("Failed to send prune to Morpho: {:?}", e);
+                                    }
+                                    if let Err(e) = comet.send(AdminCmd::Prune).await {
+                                        tracing::error!("Failed to send prune to Comet: {:?}", e);
                                     }
                                 });
                             }
