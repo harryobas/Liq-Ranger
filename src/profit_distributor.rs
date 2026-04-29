@@ -1,6 +1,7 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
+use std::{
+    collections::HashSet, 
+    str::FromStr, 
+    sync::{Arc, atomic::{AtomicBool, Ordering}}
 };
 
 use anyhow::{Result, Context};
@@ -17,6 +18,8 @@ use crate::{
     constants,
 };
 
+use sqlx::Row;
+
 /// ProfitDistributor agent with cron-based weekly execution
 ///
 /// - Reorg safe (waits confirmations)
@@ -27,6 +30,7 @@ pub struct ProfitDistributor<M: Middleware + 'static> {
     client: Arc<M>,
     contract: Arc<IFlashLiquidator<M>>,
     running: AtomicBool,
+    pool: sqlx::Pool<sqlx::Sqlite>,
 }
 
 impl<M: Middleware + 'static> ProfitDistributor<M> {
@@ -35,11 +39,13 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
     pub fn new(
         client: Arc<M>,
         contract: Arc<IFlashLiquidator<M>>,
+        pool: sqlx::Pool<sqlx::Sqlite>,
     ) -> Self {
         Self {
             client,
             contract,
             running: AtomicBool::new(false),
+            pool,
         }
     }
 
@@ -107,7 +113,17 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
             format_ether(*constants::GAS_THRESHOLD)
         );
 
+        let accumulated_wpol = self.contract.accumulated_profits(*constants::WPOL).call().await?;
         let refuel_amt = constants::REFUEL_AMT.saturating_sub(gas_balance);
+
+        if accumulated_wpol < refuel_amt {
+        tracing::warn!(
+            "⚠️ Gas low, but contract only has {} WPOL (need {}). Skipping refuel.",
+            format_ether(accumulated_wpol),
+            format_ether(refuel_amt)
+        );
+        return Ok(());
+        }
 
         if refuel_amt.is_zero() {
             return Ok(());
@@ -138,10 +154,15 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
     /// Profit Distribution Logic
     /// ---------------------------
     async fn distribute_all_assets(&self) -> Result<()> {
-        for asset in constants::PROFIT_DIST_ASSETS.iter() {
+        let active_assets = self.discover_active_assets().await?;
+
+        tracing::info!("🔍 Scanning {} unique assets for profits...", active_assets.len());
+
+
+        for asset in active_assets {
             let profit_amount = self
                 .contract
-                .accumulated_profits(*asset)
+                .accumulated_profits(asset)
                 .call()
                 .await?;
 
@@ -149,9 +170,18 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
                 continue;
             }
 
-            let breet_addr = self.breet_address_for(*asset);
+            if asset == *constants::WPOL {
+                // Skip WPOL since it's used for gas
+                tracing::info!(
+                    "💰 Skipping WPOL profit of {} (used for gas)",
+                    format_ether(profit_amount)
+                );
+                continue;
+            }
+
+            let breet_addr = self.breet_address_for(asset);
             let asset_sym = common::get_token_symbol(
-                *asset, 
+                asset, 
                 self.client.clone()
             )
             .await?;
@@ -162,7 +192,7 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
                 asset_sym
             );
 
-            let call = self.contract.distribute_profits(*asset, breet_addr);
+            let call = self.contract.distribute_profits(asset, breet_addr);
             let pending = call.send().await.context("Distribution tx submission failed")?;
 
             let receipt = pending
@@ -178,6 +208,30 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
         }
 
         Ok(())
+    }
+
+    async fn discover_active_assets(&self) -> Result<HashSet<Address>> {
+        let mut assets  = HashSet::new();
+
+        assets.extend(constants::PROFIT_DIST_ASSETS.iter().cloned());
+
+        let sql = "
+        SELECT profit_asset FROM liquidations 
+        UNION 
+        SELECT collateral_asset FROM liquidations";
+
+        let rows = sqlx::query(sql).fetch_all(&self.pool).await?;
+
+        for row in rows {
+            if let Some(addr_str) = row.try_get::<String, _>("profit_asset").ok() {
+                 if let Ok(addr) = Address::from_str(&addr_str) {
+                    assets.insert(addr);
+                }
+            }
+        }
+
+        Ok(assets)
+
     }
 
     /// Resolve Breet address

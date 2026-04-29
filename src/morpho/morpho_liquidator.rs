@@ -1,7 +1,7 @@
 use anyhow::ensure;
 use ethers::{
-    signers::Signer,
-    providers::Middleware, types::{Address, H256, U256, Bytes}
+    providers::Middleware, 
+    types::{Address, H256, U256}
 };
 
 use std::sync::Arc;
@@ -16,9 +16,16 @@ use super::{
 };
 
 use crate::{common::{
-    Liquidator, SwapQueryParams, abi_bindings::{IFlashLiquidator, LiquidationParams}, create_simulation_sandbox, execute_liq_tx, get_token_decimals, paraswap::ParaSwapClient, simulate_liq_tx, simulation_sandbox::AnvilSandbox
-    
-}, constants};
+    Liquidator, 
+    SwapQueryParams, 
+    abi_bindings::{IFlashLiquidator, LiquidationParams}, 
+    create_simulation_sandbox, 
+    execute_liq_tx, 
+    get_token_decimals, 
+    paraswap::ParaSwapClient, 
+    simulate_liq_tx, 
+    simulation_sandbox::AnvilSandbox
+}};
 
 /// ─────────────────────────────────────────────
 /// Liquidation mode (Morpho invariant enforced)

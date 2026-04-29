@@ -5,10 +5,12 @@ use tracing_subscriber::{fmt, EnvFilter};
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
 
-    fmt()
-        .with_env_filter(EnvFilter::from_default_env())
+     fmt()
+        .with_env_filter(EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("info")))
         .init();
 
+   
     tracing::info!("🚀 Starting liquidation mining");
 
     if let Err(e) = liq_ranger::start_liquidation_engines().await {

@@ -11,7 +11,7 @@ use ethers::{
     types::{Address, Bytes, H256 as TxHash, U256}
 };
 
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     aave::{aave_watchlist::AaveWatchList, abi_bindings::IAaveV3Pool},
@@ -213,4 +213,83 @@ pub async fn create_simulation_sandbox<M: Middleware + 'static>(block_number: u6
     sim_sandbox.set_balance(keeper_address, U256::exp10(18) * 50).await?;
 
     Ok(sim_sandbox)
+}
+
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct LiquidationRecord {
+    pub timestamp: i64,
+    pub block_number: i64,
+    pub protocol: String,
+    pub borrower: Address,
+    pub collateral_asset: Address,
+    pub profit_asset: Address,
+    pub profit_amount: f64,
+    pub profit_symbol: String,
+    pub collateral_symbol: String,
+    pub tx_hash: String,
+}
+
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct DistributionRecord {
+    pub tx_hash: String,
+    pub asset: String,
+    pub asset_symbol: String,
+    pub amount: f64,
+    pub owner_share: f64,
+    pub breet_share: f64,
+    pub timestamp: i64,
+}
+
+impl LiquidationRecord {
+
+    pub async fn save(&self, pool: &sqlx::SqlitePool) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+            INSERT OR IGNORE INTO liquidations (
+                tx_hash, protocol, borrower, profit_asset, profit_symbol, 
+                collateral_asset, collateral_symbol, profit_amount, block_number, timestamp
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            "#
+        )
+        .bind(&self.tx_hash)
+        .bind(&self.protocol)
+        .bind( self.borrower.to_string())
+        .bind(self.profit_asset.to_string())
+        .bind(&self.profit_symbol)
+        .bind(self.collateral_asset.to_string())
+        .bind(&self.collateral_symbol)
+        .bind(self.profit_amount)
+        .bind(self.block_number)
+        .bind(self.timestamp)
+        .execute(pool)
+        .await?;
+
+        Ok(())
+    }
+
+    
+}
+
+impl DistributionRecord {
+    
+    pub async fn save(&self, pool: &sqlx::SqlitePool) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+            INSERT OR IGNORE INTO distributions (
+                tx_hash, asset, asset_symbol, amount, owner_share, breet_share, timestamp
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            "#
+        )
+        .bind(&self.tx_hash)
+        .bind(&self.asset)
+        .bind(&self.asset_symbol)
+        .bind(self.amount)
+        .bind(self.owner_share)
+        .bind(self.breet_share)
+        .bind(self.timestamp)
+        .execute(pool)
+        .await?;
+
+        Ok(())
+    }
 }

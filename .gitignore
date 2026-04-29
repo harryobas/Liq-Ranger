@@ -1,6 +1,7 @@
 /target/
+/data/
 .env
-/src/data/
 *.sled
-*.db
+*.db*
+
 

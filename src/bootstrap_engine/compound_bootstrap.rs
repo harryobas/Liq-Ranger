@@ -33,13 +33,15 @@ impl<M: Middleware + 'static> Bootstrap for CompoundBootstrap<M> {
         tracing::info!("starting compound bootstrap");
 
         for asset in constants::COMPOUND_RESERVES.iter() {
-            let current_inventry = self.compound.get_collateral_reserves(*asset).await?;
-            if current_inventry > U256::zero() {
-                self.watch_list.add((*asset, current_inventry)).await?;
+            let current_inventory = self.compound.get_collateral_reserves(*asset).await?;
+            tracing::debug!("Asset {} inventory: {:?}", asset, current_inventory);
+            if current_inventory > U256::zero() {
+                self.watch_list.add((*asset, current_inventory)).await?;
+                tracing::info!("Added asset {} with inventory {:?}", asset, current_inventory);
             }
 
         }
-
+        
         Ok(())
 
     }

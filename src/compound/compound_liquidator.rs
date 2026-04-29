@@ -1,9 +1,8 @@
 use std::sync::Arc;
 use anyhow::{Result, ensure};
 use ethers::{
-    signers::Signer,
     providers::Middleware,
-    types::{Address, Bytes, U256},
+    types::{Address, U256},
 };
 use futures_util::{stream, StreamExt};
 
@@ -25,8 +24,7 @@ use crate::{common::{
     execute_liq_tx, 
     get_token_decimals, 
     paraswap::ParaSwapClient, 
-    simulate_liq_tx, 
-    simulation_sandbox::AnvilSandbox
+    simulate_liq_tx
 }, constants};
 
 pub struct CompoundLiquidator<M: Middleware + 'static> {

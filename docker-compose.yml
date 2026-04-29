@@ -1,9 +1,13 @@
-version: "3.9"
 
 services:
   liq-ranger:
     image: ${DOCKER_IMAGE}
     container_name: liq-ranger
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     volumes:
       - ./data:/home/scavenger/app/data
     restart: unless-stopped
@@ -13,5 +17,25 @@ services:
       RPC_URL: ${RPC_URL}
       PRIVATE_KEY: ${PRIVATE_KEY}
       RPC_URL_HTTP: ${RPC_URL_HTTP}
+      RUST_LOG: ${RUST_LOG:-info}
+
+  ranger-grafana:
+    image: ${GRAFANA_IMAGE}
+    container_name: ranger-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_INSTALL_PLUGINS=frser-sqlite-datasource
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./data:/home/scavenger/app/data:ro
+      - ./provisioning:/etc/grafana/provisioning
+    depends_on:
+      - liq-ranger
+
+volumes:
+  grafana_data:
     
 

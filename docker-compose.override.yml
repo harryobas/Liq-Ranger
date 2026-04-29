@@ -1,4 +1,3 @@
-version: "3.9"
 
 services:
   liq-ranger:
@@ -14,5 +13,28 @@ services:
     # Optional if you want to run interactively for debugging
     stdin_open: true
     tty: true
+
+  ranger-grafana:
+    image: grafana/grafana:latest
+    container_name: ranger-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_INSTALL_PLUGINS=frser-sqlite-datasource
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./data:/home/scavenger/app/data:ro
+      - ./provisioning:/etc/grafana/provisioning
+    depends_on:
+      - liq-ranger
+
+volumes:
+  grafana_data:
+
+
+
+
 
   

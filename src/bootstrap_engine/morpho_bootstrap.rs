@@ -55,7 +55,7 @@ impl<M: Middleware + 'static> Bootstrap for MorphoBootstrap<M>  {
             .unwrap_or(self.deploy_block)
             .saturating_sub(20);
 
-        let batch_size = 5_000u64;
+        let batch_size = 2_000u64;
         let mut entries: HashSet<(Address, H256)> = HashSet::new();
 
         while  start_block <= latest_block {

@@ -24,7 +24,7 @@ impl Config for MorphoConfig {
         let morpho_markets = constants::MORPHO_MARKETS.clone();
         let rpc_url = constants::RPC_URL.clone();
         let wallet = constants::WALLET.clone();
-        let db_path = constants::DB_PATH.into();
+        let db_path = constants::SLED_PATH.into();
         let block_interval = constants::LIQ_EXECUTOR_INTERVAL;
         let keeper_address = wallet.address();
         let chain_id = constants::CHAIN_ID;

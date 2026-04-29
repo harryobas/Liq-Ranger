@@ -32,7 +32,7 @@ pub async fn start_engine<M: Middleware + 'static>(
 
     spawn_and_register(async move {
         if let Err(e) = updater.start().await {
-            tracing::error!("");
+            tracing::error!("Compound WatchListUpdater error: {:?}", e);
         }
     });
 

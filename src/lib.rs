@@ -8,12 +8,14 @@ mod liquidation_executor;
 mod morpho;
 mod profit_distributor;
 mod watchlist_pruner;
+mod liq_data_extractor;
+mod db;
 
 use std::{fs, path::Path, sync::Arc};
 
 use ethers::{
     middleware::{NonceManagerMiddleware, SignerMiddleware},
-    providers::{Provider, Ws},
+    providers::{Provider, Ws, Http},
     signers::Signer,
 };
 
@@ -27,6 +29,7 @@ use crate::{
     },
     profit_distributor::ProfitDistributor,
     watchlist_pruner::WatchListPruner,
+    liq_data_extractor::LiqDataExtractor,
 };
 use bootstrap_engine::{
     Bootstrap,
@@ -53,14 +56,15 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
     let (morpho_tx, morpho_rx) = mpsc::channel::<AdminCmd>(64);
     let (comet_tx, comet_rx) = mpsc::channel::<AdminCmd>(64);
 
-    if let Some(parent) = Path::new(constants::DB_PATH).parent() {
+    if let Some(parent) = Path::new(constants::SLED_PATH).parent() {
         if !parent.exists() {
             tracing::info!("Creating database directory at {:?}", parent);
             fs::create_dir_all(parent)?;
         }
     }
 
-    let db = Arc::new(sled::open(constants::DB_PATH)?);
+    let db = Arc::new(sled::open(constants::SLED_PATH)?);
+    let sqlite_pool = db::connect(&*constants::DATABASE_URL).await?;
 
     let contracts = fetch_contracts(client.clone())?;
     let w_lists = fetch_watchlists(db)?;
@@ -90,7 +94,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         .run_all()
         .await?;
 
-    // Start Aave + Morpho + Compound Engines
+    //Start Aave + Morpho + Compound Engines
     let morpho_engine = morpho::start_engine(
         client.clone(),
         shutdown_rx.clone(),
@@ -150,11 +154,28 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
 
     let f_liq = Arc::new(contracts.flash_liq);
 
-    let profit_distributor = Arc::new(ProfitDistributor::new(client.clone(), f_liq.clone()));
+    let profit_distributor = Arc::new(
+        ProfitDistributor::new(client.clone(), 
+        f_liq.clone(), 
+        sqlite_pool.clone())
+    );
 
     spawn_and_register(async move {
         if let Err(e) = profit_distributor.start().await {
             tracing::error!("❌ Profit_distributor failed: {:?}", e);
+        }
+    });
+
+    let liq_data_extractor = LiqDataExtractor::new(
+        f_liq.clone(),
+        sqlite_pool.clone(),
+        shutdown_rx.clone(),
+        client.clone(),
+    );
+
+    spawn_and_register(async move {
+        if let Err(e) = liq_data_extractor.start().await {
+            tracing::error!("❌ LiqDataExtractor failed: {:?}", e);
         }
     });
 

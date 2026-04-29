@@ -16,7 +16,7 @@ pub struct AaveConfig {
     pub reserves: HashSet<Address>,
     pub vdebt_tokens: HashMap<Address, Address>,
     pub chain_id: u64,
-    pub db_path: String
+    
     
 
 }
@@ -35,7 +35,7 @@ impl Config for  AaveConfig  {
              reserves: constants::AAVE_RESERVES.clone(),
              vdebt_tokens: HashMap::new(),
              chain_id: constants::CHAIN_ID,
-             db_path: constants::DB_PATH.to_string()
+            
         })
     }
 

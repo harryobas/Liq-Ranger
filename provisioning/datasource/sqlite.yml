@@ -1,0 +1,11 @@
+apiVersion: 1
+
+datasources:
+  - name: RangerSQLite
+    type: frser-sqlite-datasource
+    access: proxy
+    url:                     # leave empty or omit – not used for file‑based sources
+    jsonData:
+      path: /home/scavenger/app/data/history.db
+    isDefault: true
+    editable: false

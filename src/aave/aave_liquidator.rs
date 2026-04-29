@@ -12,15 +12,21 @@ aave_watchlist::AaveWatchList};
 
 use anyhow::ensure;
 use ethers::{
-    signers::Signer,
-    providers::Middleware, types::{Address, Bytes, U256}
+    providers::Middleware, types::{Address, U256}
 };
 
 use std::sync::Arc;
 
 use crate::{common::{
-    Liquidator, SwapQueryParams, abi_bindings::{IFlashLiquidator, LiquidationParams}, create_simulation_sandbox, execute_liq_tx, get_token_decimals, paraswap::ParaSwapClient, simulate_liq_tx, simulation_sandbox::AnvilSandbox
-}, constants};
+    Liquidator, 
+    SwapQueryParams, 
+    abi_bindings::{IFlashLiquidator, LiquidationParams}, 
+    create_simulation_sandbox, 
+    execute_liq_tx, 
+    get_token_decimals, 
+    paraswap::ParaSwapClient, 
+    simulate_liq_tx}, 
+};
 use futures_util::{self, StreamExt, stream}; 
 
 pub struct AaveLiquidator<M: Middleware + 'static> {

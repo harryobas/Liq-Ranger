@@ -17,16 +17,20 @@ use dashmap::DashMap;
 
 // Shared
 pub const CHAIN_ID: u64 = 137;
-pub const DB_PATH: &str = "./data/sled_db";
+pub const SLED_PATH: &str = "./data/sled_db";
 pub const LIQ_EXECUTOR_INTERVAL: u64 = 3;
 pub const PRUNE_INTERVAL: u64 = 30;
 
-pub const AAVE_DEPLOY_BLOCK: u64 = 25_700_000;
+pub static DATABASE_URL: Lazy<String> = Lazy::new(|| {
+    env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://./data/history.db".to_string())
+});
+
+pub const AAVE_DEPLOY_BLOCK: u64 = 75_000_000;
 //pub const COMPOUND_DEPLOY_BLOCK: u64 = 42_000_000;
-pub const MORPHO_DEPLOY_BLOCK: u64 = 57_000_000;
+pub const MORPHO_DEPLOY_BLOCK: u64 = 68_000_000;
 
 pub static FLASH_LIQUIDATOR: Lazy<Address> = Lazy::new(|| {
-    Address::from_str("0x46082c9F4ca0eF92c510984B612183211c0a27dE").expect("Failed")
+    Address::from_str("0x089C0634bb99593174D8273f997c9dbC5D9A4991").expect("Failed")
 });
 
 
@@ -51,7 +55,7 @@ pub static BREET: Lazy<Address> = Lazy::new(||
 );
 
 pub static GAS_THRESHOLD: Lazy<U256> = Lazy::new(|| parse_ether(10u64).expect("Failed"));
-pub static REFUEL_AMT: Lazy<U256> = Lazy::new(|| parse_ether(100).expect("Failed"));
+pub static REFUEL_AMT: Lazy<U256> = Lazy::new(|| parse_ether(100u64).expect("Failed"));
 
 pub static PROFIT_DIST_ASSETS: Lazy<Vec<Address>> = Lazy::new(|| {
     let mut profit_assets: Vec<Address> = AAVE_RESERVES.iter().cloned().collect();
