@@ -93,8 +93,8 @@ jobs:
             mkdir -p data/sled_db
             chown -R 1000:472 data
 
-            chmod  775 data
-            chmod -R 775 data/sled_db
+            chmod -R  777 data
+            chmod  775 data/sled_db
 
             # Ensure SQLite file exists and is readable by Grafana (UID 472)
             touch data/history.db

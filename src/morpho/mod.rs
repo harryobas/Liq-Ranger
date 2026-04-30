@@ -52,6 +52,7 @@ pub async fn start_engine<M: Middleware + 'static>(
     );
 
     spawn_and_register(async move {
+        tracing::info!("Morpho watch list updater starting...");
         if let Err(e) = updater.start().await {
             tracing::error!("❌ Morpho watch list updater failed: {:?}", e);
         }

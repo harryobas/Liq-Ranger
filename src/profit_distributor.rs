@@ -51,6 +51,7 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
 
     /// Start weekly cron job
     pub async fn start(self: Arc<Self>) -> Result<()> {
+        tracing::info!("📅 ProfitDistributor started for weekly execution...");
         let sched = JobScheduler::new().await?;
 
         // Every Sunday at 02:00 UTC

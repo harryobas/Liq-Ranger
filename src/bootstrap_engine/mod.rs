@@ -26,6 +26,7 @@ pub struct BootstrapExecutor {
 
 impl BootstrapExecutor {
     pub async fn run_all(&self) -> anyhow::Result<()> {
+        tracing::info!("Starting bootstrap process for all protocols...");
         let mut handles = Vec::new();
 
         for bootstrap in &self.bootstraps {

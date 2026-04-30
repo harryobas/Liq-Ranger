@@ -107,9 +107,11 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
     ];
 
     tracing::info!("Running bootstraps...");
-    bootstrap_engine::BootstrapExecutor { bootstraps }
-        .run_all()
-        .await?;
+    spawn_and_register(async move {
+    if let Err(e) = (bootstrap_engine::BootstrapExecutor { bootstraps }).run_all().await {
+        tracing::error!("❌ Bootstrap executor failed: {:?}", e);
+    }
+});
 
     // --- Start Engines (Using HTTP Client for calls/txs) ---
     let morpho_engine = morpho::start_engine(
@@ -149,6 +151,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
     );
 
     spawn_and_register(async move {
+        tracing::info!("Starting liquidation executor...");
         if let Err(e) = executor.start().await {
             tracing::error!("❌ Liquidation executor failed: {:?}", e);
         }
@@ -164,6 +167,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         constants::PRUNE_INTERVAL,
     );
     spawn_and_register(async move {
+        tracing::info!("Starting watchlist pruner...");
         if let Err(e) = watchlist_pruner.start().await {
             tracing::error!("❌ Watchlist pruner failed: {:?}", e);
         }
@@ -176,6 +180,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         sqlite_pool.clone()
     ));
     spawn_and_register(async move {
+        tracing::info!("Starting profit distributor...");
         if let Err(e) = profit_distributor.start().await {
             tracing::error!("❌ Profit_distributor failed: {:?}", e);
         }
@@ -188,6 +193,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         http_client.clone(),
     );
     spawn_and_register(async move {
+        tracing::info!("Starting liquidation data extractor...");
         if let Err(e) = liq_data_extractor.start().await {
             tracing::error!("❌ LiqDataExtractor failed: {:?}", e);
         }
@@ -201,6 +207,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
     );
 
     spawn_and_register(async move {
+        tracing::info!("Starting block watcher...");
         if let Err(e) = block_watcher.start().await {
             tracing::error!("❌ Block watcher failed: {:?}", e);
         }

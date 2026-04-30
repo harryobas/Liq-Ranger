@@ -47,7 +47,7 @@ impl<M: Middleware + Send + Sync + 'static> AaveWatchListUpdater<M> {
     }
 
     async fn run(mut self) -> Result<()> {
-        tracing::info!("📡 AaveWatchListUpdater starting...");
+        tracing::info!("AaveWatchListUpdater started...");
 
         let events = self.pool.events();
         let mut event_stream = events.stream().await?;

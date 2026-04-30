@@ -31,6 +31,7 @@ impl WatchListPruner {
     }
 
     pub async fn start(&mut self) -> anyhow::Result<()> {
+        tracing::info!("📡 WatchListPruner started (every {} blocks)", self.interval);
         loop {
             tokio::select! {
                 _ = self.shutdown.changed() => {

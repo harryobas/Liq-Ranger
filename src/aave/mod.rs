@@ -49,6 +49,7 @@ pub async fn start_engine<M: Middleware  + 'static>(
     );
 
     spawn_and_register(async move {
+        tracing::info!("Aave watch list updater starting...");
         if let Err(e) = aave_updater.start().await {
             tracing::error!("❌ Aave watch list updater failed: {:?}", e);
         }

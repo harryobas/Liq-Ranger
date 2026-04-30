@@ -6,7 +6,7 @@ use crate::constants::GLOBAL_TASK_HANDLES;
 pub async fn register_task(handle: JoinHandle<()>) {
     let mut handles = GLOBAL_TASK_HANDLES.lock().await;
     handles.push(handle);
-    tracing::debug!("Task registered. Total tasks: {}", handles.len());
+    tracing::info!("Task registered. Total tasks: {}", handles.len());
 }
 
 pub async fn register_task_named(name: &'static str, handle: JoinHandle<()>) {
