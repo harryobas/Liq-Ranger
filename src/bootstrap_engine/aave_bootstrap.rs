@@ -50,7 +50,7 @@ impl<M: Middleware + 'static> Bootstrap  for AaveBootstrap<M> {
             .unwrap_or(self.deploy_block)
             .saturating_sub(20);
 
-        let batch_size = 5_000u64;
+        let batch_size = 3_000u64;
         let mut entries: HashSet<(Address, Address)> = HashSet::new();
 
 
@@ -78,7 +78,7 @@ impl<M: Middleware + 'static> Bootstrap  for AaveBootstrap<M> {
                 borrow_filter.query(),
                 repay_filter.query(),
                 liq_filter.query(),
-            )?;
+            ).map_err(|e| anyhow::anyhow!("Aave RPC error at block {}: {}", start_block, e))?;
 
             for ev in borrows.into_iter() {
                 if whitelist_reserves.contains(&ev.reserve) {
@@ -97,9 +97,18 @@ impl<M: Middleware + 'static> Bootstrap  for AaveBootstrap<M> {
                     entries.insert((ev.user, ev.debt_asset));
                 }
             }
+            let mut added_count = 0;
             for entry in entries.drain() {
-                self.watch_list.add(entry).await?;
+                if !self.watch_list.contains(entry.0, entry.1) {
+                    self.watch_list.add(entry).await?;
+                    added_count += 1;
+                    tracing::debug!("Added borrower {:?} (reserve {:?})", entry.0, entry.1);
+                   
+                }
              }
+             if added_count > 0 {
+                tracing::info!("Successfully indexed {} new Aave positions", added_count);
+            }
 
             self.state.save_last_block(Protocol::Aave, current_end).await?;
             start_block = current_end + 1;

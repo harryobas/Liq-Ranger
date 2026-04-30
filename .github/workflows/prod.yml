@@ -9,6 +9,7 @@ on:
 env:
   DOCKER_IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/liq-ranger
   GRAFANA_IMAGE_NAME: "grafana/grafana:latest"
+  RUST_LOG: ${{ secrets.RUST_LOG }}
 
 jobs:
   build:
@@ -81,6 +82,7 @@ jobs:
             export RPC_URL_HTTP="${{ secrets.RPC_URL_HTTP }}"
             export GRAFANA_PASSWORD="${{ secrets.GRAFANA_PASSWORD }}"
             export GRAFANA_IMAGE="${{ env.GRAFANA_IMAGE_NAME }}"
+            export RUST_LOG="${{ env.RUST_LOG }}"
 
             if [ -n "${{ env.GRAFANA_IMAGE_NAME }}" ]; then
               export GRAFANA_IMAGE="${{ env.GRAFANA_IMAGE_NAME }}"
@@ -91,7 +93,7 @@ jobs:
             mkdir -p data/sled_db
             chown -R 1000:472 data
 
-            find data -type d -exec chmod 775 {} \;
+            chmod -R 775
             chmod 700 data/sled_db
 
             # Ensure SQLite file exists and is readable by Grafana (UID 472)

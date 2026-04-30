@@ -69,15 +69,23 @@ impl AaveWatchList {
 
         Ok(())
     }
+
+    pub fn contains(&self, borrower: Address, reserve: Address) -> bool {
+        self.cache
+            .get(&borrower)
+            .map(|set| set.contains(&reserve))
+            .unwrap_or(false)
+    }
 }
 
+ 
 #[async_trait]
 impl WatchList<(Address, Address)> for AaveWatchList {
     async fn add(&self, (borrower, reserve): (Address, Address)) -> anyhow::Result<()> {
         let mut set = self.cache.entry(borrower).or_default();
 
         if !set.insert(reserve) {
-            tracing::warn!(?borrower, ?reserve, "Reserve already tracked");
+            tracing::debug!(?borrower, ?reserve, "Reserve already tracked");
             return Ok(());
         }
 

@@ -109,8 +109,18 @@ impl<M: Middleware + 'static> Bootstrap for MorphoBootstrap<M>  {
 
             }
 
+            let mut added_count = 0;
+
              for entry in entries.drain() {
-                self.watch_list.add(entry).await?;
+                if !self.watch_list.contains(entry.0, entry.1) {
+                    self.watch_list.add(entry).await?;
+                    added_count += 1;
+                    tracing::debug!("Added borrower {:?} (market_id {:?})", entry.0, entry.1);
+                }
+               
+             }
+             if added_count > 0 {
+                tracing::info!("Successfully indexed {} new Morpho positions", added_count);
              }
 
             self.state.save_last_block(Protocol::Morpho, current_end).await?;
