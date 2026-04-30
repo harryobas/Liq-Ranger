@@ -13,12 +13,6 @@ for var in "${REQUIRED_VARS[@]}"; do
 done
 echo "✅ All required environment variables are set"
 
-# --- Ensure data directory permissions and SQLite file ---
-mkdir -p data/sled_db
-chown -R 1000:1000 data
-find data -type d -exec chmod 755 {} \;
-chmod 700 data/sled_db
-touch data/history.db && chmod 644 data/history.db
 
 # --- Pull latest images ---
 echo "🐳 Pulling images: $DOCKER_IMAGE and ${GRAFANA_IMAGE:-grafana/grafana:latest}"
@@ -36,20 +30,6 @@ if ! docker compose up -d; then
     exit 1
 fi
 
-# --- Wait for SQLite file to be created (bot may need a few seconds) ---
-echo "⏳ Waiting for SQLite database to appear..."
-for i in {1..30}; do
-    if [[ -f "data/history.db" ]]; then
-        echo "✅ SQLite database found"
-        break
-    fi
-    sleep 1
-done
-
-# Re-ensure permissions in case bot recreated the file
-if [[ -f "data/history.db" ]]; then
-    chmod 644 data/history.db
-fi
 
 # --- Health checks for both services ---
 echo "📊 Checking service status..."

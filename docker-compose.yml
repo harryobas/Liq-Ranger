@@ -30,7 +30,7 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./data:/home/scavenger/app/data:ro
+      - ./data:/home/scavenger/app/data
       - ./provisioning:/etc/grafana/provisioning
     depends_on:
       - liq-ranger

@@ -89,14 +89,14 @@ jobs:
             fi
 
             mkdir -p data/sled_db
-            chown -R 1000:1000 data
+            chown -R 1000:472 data
 
-            find data -type d -exec chmod 755 {} \;
+            find data -type d -exec chmod 775 {} \;
             chmod 700 data/sled_db
 
             # Ensure SQLite file exists and is readable by Grafana (UID 472)
             touch data/history.db
-            chmod 644 data/history.db
+            chmod 664 data/history.db
 
             # Provisioning directory only needs read/execute for root
             chmod -R 755 provisioning

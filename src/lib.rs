@@ -15,7 +15,7 @@ use std::{fs, path::Path, sync::Arc};
 
 use ethers::{
     middleware::{NonceManagerMiddleware, SignerMiddleware},
-    providers::{Provider, Ws, Http},
+    providers::{Provider, Ws},
     signers::Signer,
 };
 

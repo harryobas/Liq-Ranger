@@ -50,7 +50,7 @@ impl<M: Middleware + 'static> Bootstrap  for AaveBootstrap<M> {
             .unwrap_or(self.deploy_block)
             .saturating_sub(20);
 
-        let batch_size = 9_000u64;
+        let batch_size = 5_000u64;
         let mut entries: HashSet<(Address, Address)> = HashSet::new();
 
 
