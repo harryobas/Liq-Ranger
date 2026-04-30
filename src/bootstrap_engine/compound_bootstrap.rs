@@ -30,23 +30,35 @@ impl <M: Middleware + 'static> CompoundBootstrap<M> {
 #[async_trait::async_trait]
 impl<M: Middleware + 'static> Bootstrap for CompoundBootstrap<M> {
     async fn run(&self) -> anyhow::Result<()> {
-        tracing::info!("starting compound bootstrap");
+        tracing::info!("Starting Compound Buy-Collateral Bootstrap");
 
-        for asset in constants::COMPOUND_RESERVES.iter() {
-            let current_inventory = self.compound.get_collateral_reserves(*asset).await?;
-            tracing::debug!("Asset {} inventory: {:?}", asset, current_inventory);
-            if current_inventory > U256::zero() {
-                self.watch_list.add((*asset, current_inventory)).await?;
-                tracing::info!("Added asset {} with inventory {:?}", asset, current_inventory);
+        // Use the constants for the specific collateral assets supported by this Comet instance
+        let assets = &*constants::COMPOUND_RESERVES;
+
+        for &asset in assets {
+            // Check protocol inventory
+            match self.compound.get_collateral_reserves(asset).await {
+                Ok(reserves) if reserves > U256::zero() => {
+                    tracing::info!(
+                        "Asset {:?} has {:?} available in reserves", 
+                        asset, 
+                        reserves
+                    );
+                    self.watch_list.add((asset, reserves)).await?;
+                }
+                Ok(_) => tracing::debug!("No reserves for asset {:?}", asset),
+                Err(e) => tracing::error!("Failed to fetch reserves for {:?}: {}", asset, e),
             }
-
         }
-        
+
+        tracing::info!("Compound Buy-Collateral bootstrap complete");
         Ok(())
-
     }
-
-     fn name(&self) -> &'static str {
+    
+    fn name(&self) -> &'static str {
         "Compound"
     }
 }
+  
+
+     
