@@ -1,8 +1,10 @@
 use std::{collections::HashSet, sync::Arc};
+use tokio::time::{sleep, Duration};
+
 use ethers::{types::Address, providers::Middleware};
 
 use crate::{
-    common::WatchList, constants, aave::{abi_bindings::IAaveV3Pool, 
+    common::WatchList, constants, aave::{abi_bindings::{IAaveV3Pool, BorrowFilter, RepayFilter, LiquidationCallFilter},
         aave_watchlist::AaveWatchList}
     };
 
@@ -35,6 +37,63 @@ impl<M: Middleware + 'static> AaveBootstrap<M> {
             deploy_block: constants::AAVE_DEPLOY_BLOCK
         }
     }
+
+    async fn fetch_batch(
+        &self, 
+        aave: &IAaveV3Pool<M>, 
+        start_block: u64, 
+        end_block: u64
+    ) -> anyhow::Result<(Vec<BorrowFilter>, Vec<RepayFilter>, Vec<LiquidationCallFilter>)> {
+        let mut attempts = 0;
+
+        loop {
+             let borrow_filter = aave
+            .borrow_filter()
+            .from_block(start_block)
+            .to_block(end_block);
+
+            let repay_filter = aave
+            .repay_filter()
+            .from_block(start_block)
+            .to_block(end_block);
+
+            let liq_filter = aave
+            .liquidation_call_filter()
+            .from_block(start_block)
+            .to_block(end_block);
+            
+            match tokio::try_join!(
+                borrow_filter.query(),
+                repay_filter.query(),
+                liq_filter.query(),
+            ) {
+                Ok(res) => return Ok(res),
+                Err(e) => {
+                    attempts += 1;
+                    tracing::warn!(
+                    "⚠️ Aave RPC error [{} → {}] (attempt {}): {:?}",
+                    start_block,
+                    end_block,
+                    attempts,
+                    e
+                );
+                    if attempts >= 5 {
+                        return Err(anyhow::anyhow!(
+                        "Aave RPC failed after retries [{} → {}]: {}",
+                        start_block,
+                        end_block,
+                        e
+                      ));
+                    }
+                    tracing::warn!("Aave RPC error at block {}: {}. Retrying... (Attempt {}/{})", start_block, e, attempts, 5);
+                     // exponential backoff
+                    sleep(Duration::from_secs(2 * attempts)).await;
+                }
+            }
+
+            
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -50,35 +109,15 @@ impl<M: Middleware + 'static> Bootstrap  for AaveBootstrap<M> {
             .unwrap_or(self.deploy_block)
             .saturating_sub(20);
 
-        let batch_size = 2_500u64;
-        let mut entries: HashSet<(Address, Address)> = HashSet::new();
-
-
+        let batch_size = 1_000u64;
+        
         while start_block <= latest_block {
              let current_end = (start_block + batch_size).min(latest_block);
+             let mut entries: HashSet<(Address, Address)> = HashSet::new();
 
              tracing::info!("Aave bootstrap scanning {} -> {}", start_block, current_end);
 
-             let borrow_filter = self.aave
-                .borrow_filter()
-                .from_block(start_block)
-                .to_block(current_end);
-
-            let repay_filter = self.aave
-                .repay_filter()
-                .from_block(start_block)
-                .to_block(current_end);
-
-            let liq_filter = self.aave
-                .liquidation_call_filter()
-                .from_block(start_block)
-                .to_block(current_end);
-
-            let (borrows, repays, liqs) = tokio::try_join!(
-                borrow_filter.query(),
-                repay_filter.query(),
-                liq_filter.query(),
-            ).map_err(|e| anyhow::anyhow!("Aave RPC error at block {}: {}", start_block, e))?;
+            let (borrows, repays, liqs) = self.fetch_batch(&self.aave, start_block, current_end).await?;
 
             for ev in borrows.into_iter() {
                 if whitelist_reserves.contains(&ev.reserve) {

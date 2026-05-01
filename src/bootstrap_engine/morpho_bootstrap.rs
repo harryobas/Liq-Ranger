@@ -1,8 +1,9 @@
 use std::{collections::HashSet, sync::Arc};
+use tokio::time::{sleep, Duration};
 use ethers::{types::{H256, Address}, providers::Middleware};
 
 use crate::{
-    common::WatchList, constants, morpho::{abi_bindings::IMorphoBlue, 
+    common::WatchList, constants, morpho::{abi_bindings::{IMorphoBlue, BorrowFilter, RepayFilter, LiquidateFilter}, 
         morpho_watchlist::MorphoWatchList}
     };
 
@@ -38,6 +39,62 @@ impl<M: Middleware + 'static> MorphoBootstrap<M> {
         }
     }
 
+    async fn fetch_batch(
+        &self, 
+        morpho: &IMorphoBlue<M>, 
+        start_block: u64, 
+        end_block: u64
+    ) -> anyhow::Result<(Vec<BorrowFilter>, Vec<RepayFilter>, Vec<LiquidateFilter>)> {
+        let mut attempts = 0;
+
+        loop {
+             let borrow_filter = morpho
+            .borrow_filter()
+            .from_block(start_block)
+            .to_block(end_block);
+
+            let repay_filter = morpho
+            .repay_filter()
+            .from_block(start_block)
+            .to_block(end_block);
+
+            let liq_filter = morpho
+            .liquidate_filter()
+            .from_block(start_block)
+            .to_block(end_block);
+
+            match tokio::try_join!(
+                borrow_filter.query(),
+                repay_filter.query(),
+                liq_filter.query(),
+            ) {
+                Ok(res) => return Ok(res),
+                Err(e) => {
+                    attempts += 1;
+                     tracing::warn!(
+                    "⚠️ Morpho RPC error [{} → {}] (attempt {}): {:?}",
+                    start_block,
+                    end_block,
+                    attempts,
+                    e
+                );
+                    if attempts >= 5 {
+                        return Err(anyhow::anyhow!(
+                        "Morpho RPC failed after retries [{} → {}]: {}",
+                        start_block,
+                        end_block,
+                        e
+                      ));
+                    }
+                    tracing::warn!("Morpho RPC error at block {}: {}. Retrying... (Attempt {}/{})", start_block, e, attempts, 5);
+                     // exponential backoff
+                    sleep(Duration::from_secs(2 * attempts)).await;
+                }
+            }
+          }
+
+        }
+
 }
 
 #[async_trait::async_trait]
@@ -56,33 +113,18 @@ impl<M: Middleware + 'static> Bootstrap for MorphoBootstrap<M>  {
             .saturating_sub(20);
 
         let batch_size = 2_000u64;
-        let mut entries: HashSet<(Address, H256)> = HashSet::new();
-
+        
         while  start_block <= latest_block {
             let current_end = (start_block + batch_size).min(latest_block);
+            let mut entries: HashSet<(Address, H256)> = HashSet::new();
             
             tracing::info!("Morpho bootstrap scanning {} -> {}", start_block, current_end);
 
-            let borrow_filter = self.morpho
-                .borrow_filter()
-                .from_block(start_block)
-                .to_block(current_end);
-
-            let repay_filter = self.morpho
-                .repay_filter()
-                .from_block(start_block)
-                .to_block(current_end);
-
-            let liq_filter = self.morpho
-                .liquidate_filter()
-                .from_block(start_block)
-                .to_block(current_end);
-
-            let (borrows, repays, liqs) = tokio::try_join!(
-                borrow_filter.query(),
-                repay_filter.query(),
-                liq_filter.query(),
-            )?;
+            let (borrows, repays, liqs) = self.fetch_batch(
+                &self.morpho, 
+                start_block, 
+                current_end
+            ).await?;
 
             for ev in borrows.into_iter() {
                 let market_id = H256::from(ev.id);
