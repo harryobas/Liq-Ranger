@@ -26,7 +26,7 @@ use url::Url;
 use crate::{
     common::{
         fetch_contracts, fetch_watchlists,
-        task_manager::{shutdown_all_tasks, spawn_and_register, spawn_named_and_register},
+        task_manager::{shutdown_all_tasks,spawn_named_and_register},
         AdminCmd,
         Liquidator,
     },
@@ -78,13 +78,13 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
             fs::create_dir_all(parent)?;
         }
     }
-    let db = Arc::new(sled::open(constants::SLED_PATH)?);
+    let sled_db = Arc::new(sled::open(constants::SLED_PATH)?);
     let sqlite_pool = db::connect(&*constants::DATABASE_URL).await?;
 
     // --- Setup Contracts & Watchlists ---
     // Use http_client for initial setup calls
     let contracts = fetch_contracts(http_client.clone())?;
-    let w_lists = fetch_watchlists(db)?;
+    let w_lists = fetch_watchlists(sled_db)?;
 
     // --- Bootstraps (Using HTTP Client) ---
     let bootstraps: Vec<Arc<dyn Bootstrap>> = vec![
@@ -108,23 +108,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
     ];
 
     tracing::info!("Running bootstraps...");
-    spawn_named_and_register("bootstrap_executor", async move {
-    if let Err(e) = (bootstrap_engine::BootstrapExecutor { bootstraps }).run_all().await {
-        tracing::error!("❌ Bootstrap executor failed: {:?}", e);
-    }
-});
-
- let block_watcher = block_watcher::BlockWatcher::new(
-        ws_client.clone(), 
-        block_tx, 
-        shutdown_rx.clone()
-    );
-
-    spawn_named_and_register("block_watcher", async move {
-        if let Err(e) = block_watcher.start().await {
-            tracing::error!("❌ Block watcher failed: {:?}", e);
-        }
-    });
+    bootstrap_engine::BootstrapExecutor { bootstraps }.run_all().await?;
 
     let morpho_fut = morpho::start_engine(
         http_client.clone(),
@@ -150,8 +134,10 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         shutdown_rx.clone(),
         comet_rx,
     );
+    
 
-    let (morpho_res, aave_res, compound_res): (anyhow::Result<Arc<dyn Liquidator>>, anyhow::Result<Arc<dyn Liquidator>>, anyhow::Result<Arc<dyn Liquidator>>) = tokio::join!(morpho_fut, aave_fut, compound_fut);
+    let (morpho_res, aave_res, compound_res): (anyhow::Result<Arc<dyn Liquidator>>, anyhow::Result<Arc<dyn Liquidator>>, anyhow::Result<Arc<dyn Liquidator>>) = 
+        tokio::join!(morpho_fut, aave_fut, compound_fut);
 
 
     let morpho_engine: Arc<dyn Liquidator> = morpho_res?;
@@ -211,7 +197,17 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         }
     });
 
- 
+    let block_watcher = block_watcher::BlockWatcher::new(
+        ws_client.clone(), 
+        block_tx, 
+        shutdown_rx.clone()
+    );
+
+    spawn_named_and_register("block_watcher", async move {
+        if let Err(e) = block_watcher.start().await {
+            tracing::error!("❌ Block watcher failed: {:?}", e);
+        }
+    });
 
     tracing::info!("🚀 Liquidation system started");
     tokio::signal::ctrl_c().await?;
