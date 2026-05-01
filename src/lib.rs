@@ -156,7 +156,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         if let Err(e) = executor.start().await {
             tracing::error!("❌ Liquidation executor failed: {:?}", e);
         }
-    });
+    }).await;
 
     // --- Other Components ---
     let mut watchlist_pruner = WatchListPruner::new(
@@ -171,7 +171,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         if let Err(e) = watchlist_pruner.start().await {
             tracing::error!("❌ Watchlist pruner failed: {:?}", e);
         }
-    });
+    }).await;
 
     let f_liq = Arc::new(contracts.flash_liq);
     let profit_distributor = Arc::new(ProfitDistributor::new(
@@ -183,7 +183,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         if let Err(e) = profit_distributor.start().await {
             tracing::error!("❌ Profit_distributor failed: {:?}", e);
         }
-    });
+    }).await;
 
     let liq_data_extractor = LiqDataExtractor::new(
         f_liq.clone(),
@@ -195,7 +195,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         if let Err(e) = liq_data_extractor.start().await {
             tracing::error!("❌ LiqDataExtractor failed: {:?}", e);
         }
-    });
+    }).await;
 
     let block_watcher = block_watcher::BlockWatcher::new(
         ws_client.clone(), 
@@ -207,7 +207,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         if let Err(e) = block_watcher.start().await {
             tracing::error!("❌ Block watcher failed: {:?}", e);
         }
-    });
+    }).await;
 
     tracing::info!("🚀 Liquidation system started");
     tokio::signal::ctrl_c().await?;

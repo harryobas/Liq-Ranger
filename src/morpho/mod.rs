@@ -67,7 +67,7 @@ pub async fn start_engine<M: Middleware + 'static>(
         if let Err(e) = updater.start().await {
             tracing::error!("❌ Morpho watch list updater failed: {:?}", e);
         }
-    });
+    }).await;
 
     Ok(morpho_liq)
 }

@@ -59,7 +59,7 @@ pub async fn start_engine<M: Middleware  + 'static>(
             tracing::error!("❌ Aave watch list updater failed: {:?}", e);
         }
 
-    });
+    }).await;
 
 
     Ok(Arc::new(aave_liq))

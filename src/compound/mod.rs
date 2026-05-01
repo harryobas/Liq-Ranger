@@ -41,7 +41,7 @@ pub async fn start_engine<M: Middleware + 'static>(
         if let Err(e) = updater.start().await {
             tracing::error!("Compound WatchListUpdater error: {:?}", e);
         }
-    });
+    }).await;
 
     Ok(comet_liq)
 }
