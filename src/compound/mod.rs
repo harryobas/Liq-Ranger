@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, watch};
 
 use crate::{
-    common::{task_manager::spawn_and_register, AdminCmd, Liquidator},
+    common::{task_manager::spawn_named_and_register, AdminCmd, Liquidator},
     compound::{
         abi_bindings::IComet, compound_liquidator::CompoundLiquidator,
         compound_watchlist::CompoundWatchList,
@@ -29,9 +29,8 @@ pub async fn start_engine<M: Middleware + 'static>(
         CompoundLiquidator::new(client.clone(), watch_list.clone())
     );
 
-    spawn_and_register(async move {
-        tracing::info!("🔄 Starting Compound WatchListUpdater");
-
+    spawn_named_and_register("compound_watchlist_updater", async move {
+        
         let updater = CompoundWatchListUpdater::new(
             watch_list.clone(), 
             Arc::new(comet), 

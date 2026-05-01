@@ -26,7 +26,7 @@ use url::Url;
 use crate::{
     common::{
         fetch_contracts, fetch_watchlists,
-        task_manager::{shutdown_all_tasks, spawn_and_register},
+        task_manager::{shutdown_all_tasks, spawn_and_register, spawn_named_and_register},
         AdminCmd,
         Liquidator,
     },
@@ -108,7 +108,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
     ];
 
     tracing::info!("Running bootstraps...");
-    spawn_and_register(async move {
+    spawn_named_and_register("bootstrap_executor", async move {
     if let Err(e) = (bootstrap_engine::BootstrapExecutor { bootstraps }).run_all().await {
         tracing::error!("❌ Bootstrap executor failed: {:?}", e);
     }
@@ -120,8 +120,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         shutdown_rx.clone()
     );
 
-    spawn_and_register(async move {
-        tracing::info!("Starting block watcher...");
+    spawn_named_and_register("block_watcher", async move {
         if let Err(e) = block_watcher.start().await {
             tracing::error!("❌ Block watcher failed: {:?}", e);
         }
@@ -167,8 +166,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         shutdown_rx.clone(),
     );
 
-    spawn_and_register(async move {
-        tracing::info!("Starting liquidation executor...");
+    spawn_named_and_register("liquidation_executor", async move {
         if let Err(e) = executor.start().await {
             tracing::error!("❌ Liquidation executor failed: {:?}", e);
         }
@@ -183,8 +181,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         shutdown_rx.clone(),
         constants::PRUNE_INTERVAL,
     );
-    spawn_and_register(async move {
-        tracing::info!("Starting watchlist pruner...");
+    spawn_named_and_register("watchlist_pruner", async move {
         if let Err(e) = watchlist_pruner.start().await {
             tracing::error!("❌ Watchlist pruner failed: {:?}", e);
         }
@@ -196,8 +193,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         f_liq.clone(), 
         sqlite_pool.clone()
     ));
-    spawn_and_register(async move {
-        tracing::info!("Starting profit distributor...");
+    spawn_named_and_register("profit_distributor", async move {
         if let Err(e) = profit_distributor.start().await {
             tracing::error!("❌ Profit_distributor failed: {:?}", e);
         }
@@ -209,8 +205,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         shutdown_rx.clone(),
         http_client.clone(),
     );
-    spawn_and_register(async move {
-        tracing::info!("Starting liquidation data extractor...");
+    spawn_named_and_register("liq_data_extractor", async move {
         if let Err(e) = liq_data_extractor.start().await {
             tracing::error!("❌ LiqDataExtractor failed: {:?}", e);
         }

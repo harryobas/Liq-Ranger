@@ -14,7 +14,7 @@ use std::sync::Arc;
  use aave_liquidator::AaveLiquidator;
 
 use crate::{aave::abi_bindings::IAaveV3Pool, common::{
-     AdminCmd, Config, Liquidator, task_manager::spawn_and_register}};
+     AdminCmd, Config, Liquidator, task_manager::spawn_named_and_register}};
 use tokio::sync::{mpsc, watch};
 use ethers::providers::Middleware;
 
@@ -45,8 +45,7 @@ pub async fn start_engine<M: Middleware  + 'static>(
         watch_list.clone()
     );
     
-    spawn_and_register(async move {
-        tracing::info!("Aave watch list updater starting...");
+    spawn_named_and_register("aave_watchlist_updater", async move {
 
         let aave_updater = AaveWatchListUpdater::new(
             watch_list.clone(),

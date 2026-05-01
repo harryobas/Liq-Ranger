@@ -17,7 +17,10 @@ use watchlist_updater::WatchListUpdater;
 
 use crate::{
     common::{
-        abi_bindings::IFlashLiquidator, task_manager::spawn_and_register, AdminCmd, Config,
+        abi_bindings::IFlashLiquidator, 
+        task_manager::spawn_named_and_register, 
+        AdminCmd, 
+        Config,
         Liquidator,
     },
     morpho::abi_bindings::IMorphoBlue,
@@ -50,7 +53,7 @@ pub async fn start_engine<M: Middleware + 'static>(
         config.clone(),
     ));
 
-    spawn_and_register(async move {
+    spawn_named_and_register("morpho_watchlist_updater", async move {
         tracing::info!("Morpho watch list updater starting...");
 
         let updater = WatchListUpdater::new(
