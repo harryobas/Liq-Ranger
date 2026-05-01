@@ -33,8 +33,15 @@ pub async fn start_engine<M: Middleware + 'static>(
     f_liq: IFlashLiquidator<M>,
     morpho: IMorphoBlue<M>,
 ) -> anyhow::Result<Arc<dyn Liquidator>> {
-    let config = Arc::new(MorphoConfig::load()?);
 
+     let config = match MorphoConfig::load() {
+            Ok(c) => Arc::new(c),
+            Err(e) => {
+                tracing::error!("❌ Failed to load Morpho config: {:?}", e);
+                return Err(anyhow::anyhow!("Failed to load Morpho config"));
+            }
+        };
+   
     let morpho_liq = Arc::new(MorphoLiquidator::new(
         morpho.clone(),
         f_liq.clone(),
@@ -43,16 +50,17 @@ pub async fn start_engine<M: Middleware + 'static>(
         config.clone(),
     ));
 
-    let updater = WatchListUpdater::new(
-        watch_list.clone(),
-        Arc::new(morpho),
-        config.clone(),
-        shutdown_rx,
-        prune_rx,
-    );
-
     spawn_and_register(async move {
         tracing::info!("Morpho watch list updater starting...");
+
+        let updater = WatchListUpdater::new(
+            watch_list.clone(),
+            Arc::new(morpho),
+            config.clone(),
+            shutdown_rx,
+            prune_rx
+        );
+
         if let Err(e) = updater.start().await {
             tracing::error!("❌ Morpho watch list updater failed: {:?}", e);
         }

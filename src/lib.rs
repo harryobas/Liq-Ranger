@@ -28,6 +28,7 @@ use crate::{
         fetch_contracts, fetch_watchlists,
         task_manager::{shutdown_all_tasks, spawn_and_register},
         AdminCmd,
+        Liquidator,
     },
     profit_distributor::ProfitDistributor,
     watchlist_pruner::WatchListPruner,
@@ -113,34 +114,50 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
     }
 });
 
-    // --- Start Engines (Using HTTP Client for calls/txs) ---
-    let morpho_engine = morpho::start_engine(
+ let block_watcher = block_watcher::BlockWatcher::new(
+        ws_client.clone(), 
+        block_tx, 
+        shutdown_rx.clone()
+    );
+
+    spawn_and_register(async move {
+        tracing::info!("Starting block watcher...");
+        if let Err(e) = block_watcher.start().await {
+            tracing::error!("❌ Block watcher failed: {:?}", e);
+        }
+    });
+
+    let morpho_fut = morpho::start_engine(
         http_client.clone(),
         shutdown_rx.clone(),
         morpho_rx,
         w_lists.morpho_watchlist.clone(),
         contracts.flash_liq.clone(),
         contracts.morpho.clone(),
-    )
-    .await?;
+    );
 
-    let aave_engine = aave::start_engine(
+    let aave_fut = aave::start_engine(
         http_client.clone(),
         shutdown_rx.clone(),
         aave_rx,
         w_lists.aave_watchlist.clone(),
         Arc::new(contracts.aave.clone()),
-    )
-    .await?;
+    );
 
-    let compound_engine = compound::start_engine(
+    let compound_fut = compound::start_engine(
         http_client.clone(),
         w_lists.comet_watchlist.clone(),
         contracts.comet,
         shutdown_rx.clone(),
         comet_rx,
-    )
-    .await?;
+    );
+
+    let (morpho_res, aave_res, compound_res): (anyhow::Result<Arc<dyn Liquidator>>, anyhow::Result<Arc<dyn Liquidator>>, anyhow::Result<Arc<dyn Liquidator>>) = tokio::join!(morpho_fut, aave_fut, compound_fut);
+
+
+    let morpho_engine: Arc<dyn Liquidator> = morpho_res?;
+    let aave_engine: Arc<dyn Liquidator> = aave_res?;
+    let compound_engine: Arc<dyn Liquidator> = compound_res?;
 
     // --- Executor ---
     let liquidators = vec![morpho_engine, aave_engine, compound_engine];
@@ -199,19 +216,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         }
     });
 
-    // --- Block Watcher (The ONLY component using the WS Client) ---
-    let block_watcher = block_watcher::BlockWatcher::new(
-        ws_client.clone(), 
-        block_tx, 
-        shutdown_rx.clone()
-    );
-
-    spawn_and_register(async move {
-        tracing::info!("Starting block watcher...");
-        if let Err(e) = block_watcher.start().await {
-            tracing::error!("❌ Block watcher failed: {:?}", e);
-        }
-    });
+ 
 
     tracing::info!("🚀 Liquidation system started");
     tokio::signal::ctrl_c().await?;

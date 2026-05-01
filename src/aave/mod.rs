@@ -28,8 +28,14 @@ pub async fn start_engine<M: Middleware  + 'static>(
     
 ) -> anyhow::Result<Arc<dyn Liquidator>>{
     let mut aave_config = AaveConfig::load()?;
-
-     aave_config.populate_tokens(client.clone()).await?;
+   
+    match aave_config.populate_tokens(client.clone()).await {
+        Ok(_) => tracing::info!("✅ Aave config tokens populated successfully"),
+        Err(e) => {
+            tracing::error!("❌ Failed to populate Aave config tokens: {:?}", e);
+            return Err(anyhow::anyhow!("Failed to populate Aave config tokens"));
+        }
+    }
 
     let aave_config = Arc::new(aave_config);
 
@@ -39,17 +45,17 @@ pub async fn start_engine<M: Middleware  + 'static>(
         watch_list.clone()
     );
     
-
-    let aave_updater = AaveWatchListUpdater::new(
-        watch_list.clone(),
-        pool.clone(),
-        aave_config.clone(),
-        shutdown_rx.clone(), 
-        prune_rx
-    );
-
     spawn_and_register(async move {
         tracing::info!("Aave watch list updater starting...");
+
+        let aave_updater = AaveWatchListUpdater::new(
+            watch_list.clone(),
+            pool.clone(),
+            aave_config.clone(),
+            shutdown_rx.clone(), 
+            prune_rx
+        );
+        
         if let Err(e) = aave_updater.start().await {
             tracing::error!("❌ Aave watch list updater failed: {:?}", e);
         }

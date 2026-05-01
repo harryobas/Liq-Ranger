@@ -46,7 +46,6 @@ impl<M: Middleware> AaveLiquidator<M> {
         client: Arc<M>, 
         watch_list: Arc<AaveWatchList>
     ) -> Self {
-        
         let lending_pool = IAaveV3Pool::new(config.lending_pool, client.clone());
 
         let flash_liquidator = IFlashLiquidator::new(
