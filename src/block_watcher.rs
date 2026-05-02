@@ -67,7 +67,7 @@ where
                             if let Some(number) = block.number {
                                 let block_number = number.as_u64();
                                 let _ = self.tx.send(block_number);
-                                tracing::trace!("🧱 New block {}", block_number);
+                                tracing::info!("🧱 New block {}", block_number);
                             }
                         }
                         None => {
