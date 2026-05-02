@@ -62,6 +62,10 @@ impl<M: Middleware + 'static> MorphoLiquidator<M> {
     /// ─────────────────────────────────────────────
     pub async fn generate_liquidations(&self) -> anyhow::Result<Vec<LiqCandidate>> {
     let snapshot = self.watch_list.snapshot();
+
+    tracing::info!("Morpho Liquidator: Checking {} borrowers", snapshot.len());
+
+
     if snapshot.is_empty() {
         return Ok(vec![]);
     }

@@ -51,7 +51,7 @@ impl Config for  AaveConfig  {
 }
 
 impl AaveConfig {
-       pub async fn populate_tokens<M: Middleware + 'static>(
+       pub async fn populate_vdebt_tokens<M: Middleware + 'static>(
         &mut self, 
         client: Arc<M>
     ) -> anyhow::Result<()> {

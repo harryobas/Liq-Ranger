@@ -17,16 +17,8 @@ use ethers::{
 
 use std::sync::Arc;
 
-use crate::{common::{
-    Liquidator, 
-    SwapQueryParams, 
-    abi_bindings::{IFlashLiquidator, LiquidationParams}, 
-    create_simulation_sandbox, 
-    execute_liq_tx, 
-    get_token_decimals, 
-    paraswap::ParaSwapClient, 
-    simulate_liq_tx}, 
-};
+use crate::common::{
+    self, Liquidator, SwapQueryParams, abi_bindings::{IFlashLiquidator, LiquidationParams}, create_simulation_sandbox, execute_liq_tx, get_token_decimals, paraswap::ParaSwapClient, simulate_liq_tx};
 use futures_util::{self, StreamExt, stream}; 
 
 pub struct AaveLiquidator<M: Middleware + 'static> {
@@ -40,34 +32,32 @@ pub struct AaveLiquidator<M: Middleware + 'static> {
 }
 
 impl<M: Middleware> AaveLiquidator<M> {
-    // ... [new() remains similar, just remove self.dex] ...
+    
      pub fn new(
         config: Arc<AaveConfig>, 
         client: Arc<M>, 
         watch_list: Arc<AaveWatchList>
     ) -> Self {
-        let lending_pool = IAaveV3Pool::new(config.lending_pool, client.clone());
 
-        let flash_liquidator = IFlashLiquidator::new(
-            config.flash_liquidator,  
-            client.clone()
-        );
+        let contracts = match common::fetch_contracts(client.clone()) {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::error!("Failed to fetch contracts: {:?}", e);
+                panic!("Cannot initialize AaveLiquidator without contracts");
+            },
+        };
 
-        let aave_oracle = AaveOracle::new(
-            config.aave_oracle,
-            client.clone()
-        );
+        let lending_pool = contracts.aave;
+        let flash_liquidator = contracts.flash_liq;
+        let aave_oracle = contracts.aave_oracle;
+        let ui_pool_data = contracts.ui_pool_data_provider;
         
-        let user_data = UiPoolDataProvider::new(
-            config.ui_pool_data, 
-            client.clone()
-        );
-
+        
         Self { 
             lending_pool, 
             flash_liquidator, 
             aave_oracle, 
-            user_data,
+            user_data: ui_pool_data,
             client,
             watch_list,
             config
@@ -106,6 +96,8 @@ impl<M: Middleware> AaveLiquidator<M> {
         borrower: Address, 
         reserve: Address
     ) -> anyhow::Result<Option<LiquidationCandidate>>{
+
+        tracing::info!("Analyzing borrower {} for reserve {}", borrower, reserve);
             
         // 1. Health factor check
         let (_, _, _, _, _, hf) = self.lending_pool.get_user_account_data(borrower).call().await?;

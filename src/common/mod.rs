@@ -14,7 +14,7 @@ use ethers::{
 use std::sync::Arc;
 
 use crate::{
-    aave::{aave_watchlist::AaveWatchList, abi_bindings::IAaveV3Pool},
+    aave::{aave_watchlist::AaveWatchList, abi_bindings::{IAaveV3Pool, AaveOracle, UiPoolDataProvider}},
     bootstrap_engine::bootstrap_state::BootstrapState,
     common::{abi_bindings::{IERC20, IFlashLiquidator, LiquidationParams}, simulation_sandbox::{AnvilSandbox, SimResult}},
     compound::{abi_bindings::IComet, compound_watchlist::CompoundWatchList},
@@ -82,6 +82,8 @@ pub enum AdminCmd {
 
 pub struct CoreContracts<M> {
     pub aave: IAaveV3Pool<M>,
+    pub aave_oracle: AaveOracle<M>,
+    pub ui_pool_data_provider: UiPoolDataProvider<M>,
     pub morpho: IMorphoBlue<M>,
     pub comet: IComet<M>,
     pub flash_liq: IFlashLiquidator<M>,
@@ -179,17 +181,23 @@ pub fn fetch_contracts<M: Middleware + 'static>(
     let aave_addr = *constants::AAVE_V3_POOL;
     let comet_addr = *constants::COMET_USDT;
     let morpho_addr = *constants::MORPHO_BLUE;
+    let oracle_addr = *constants::AAVE_ORACLE;
+    let ui_pool_data_addr = *constants::UIPOOL_DATA_PROVIDER;
 
     let flash_liq = IFlashLiquidator::new(liq_addr, client.clone());
     let aave = IAaveV3Pool::new(aave_addr, client.clone());
     let comet = IComet::new(comet_addr, client.clone());
     let morpho = IMorphoBlue::new(morpho_addr, client.clone());
+    let aave_oracle = AaveOracle::new(oracle_addr, client.clone());
+    let ui_pool_data_provider = UiPoolDataProvider::new(ui_pool_data_addr, client.clone());
 
     Ok(CoreContracts {
         aave,
         morpho,
         comet,
         flash_liq,
+        aave_oracle,
+        ui_pool_data_provider,
     })
 }
 

@@ -29,11 +29,11 @@ pub async fn start_engine<M: Middleware  + 'static>(
 ) -> anyhow::Result<Arc<dyn Liquidator>>{
     let mut aave_config = AaveConfig::load()?;
    
-    match aave_config.populate_tokens(client.clone()).await {
-        Ok(_) => tracing::info!("✅ Aave config tokens populated successfully"),
+    match aave_config.populate_vdebt_tokens(client.clone()).await {
+        Ok(_) => tracing::info!("✅ Aave  vdebt tokens populated successfully"),
         Err(e) => {
-            tracing::error!("❌ Failed to populate Aave config tokens: {:?}", e);
-            return Err(anyhow::anyhow!("Failed to populate Aave config tokens"));
+            tracing::error!("❌ Failed to populate Aave vdebt tokens: {:?}", e);
+            return Err(anyhow::anyhow!("Failed to populate Aave vdebt tokens"));
         }
     }
 
