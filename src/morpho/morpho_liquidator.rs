@@ -273,6 +273,7 @@ where
     M: Middleware + 'static,
 {
     async fn run(&self, block_number: u64) -> anyhow::Result<()> {
+        tracing::info!("🚀 Running Morpho liquidation engine for block {}", block_number);
         let candidates = self.generate_liquidations().await?;
         if candidates.is_empty() {
             return Ok(());
