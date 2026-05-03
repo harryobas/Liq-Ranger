@@ -18,7 +18,7 @@ use dashmap::DashMap;
 // Shared
 pub const CHAIN_ID: u64 = 137;
 pub const SLED_PATH: &str = "./data/sled_db";
-pub const LIQ_EXECUTOR_INTERVAL: u64 = 5;
+pub const LIQ_EXECUTOR_INTERVAL: u64 = 10;
 pub const PRUNE_INTERVAL: u64 = 50;
 
 pub static DATABASE_URL: Lazy<String> = Lazy::new(|| {

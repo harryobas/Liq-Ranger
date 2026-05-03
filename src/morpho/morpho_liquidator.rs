@@ -135,7 +135,7 @@ async fn analyze_borrower(
         };
 
         if position.is_healthy(&market, &market_params.lltv, &price) {
-            tracing::info!("Borrower: {:?} is healthy in market: {:?}", borrower, H256::from(market_id));
+            tracing::debug!("Borrower: {:?} is healthy in market: {:?}", borrower, H256::from(market_id));
             return Ok(None);
         }
 

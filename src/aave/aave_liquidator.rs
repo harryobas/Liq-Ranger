@@ -106,7 +106,7 @@ impl<M: Middleware> AaveLiquidator<M> {
         let (_, _, _, _, _, hf) = self.lending_pool.get_user_account_data(borrower).call().await?;
 
         if hf >= U256::exp10(18) {
-            tracing::info!("Borrower: {:?} is healthy with HF: {}", borrower, hf);
+            tracing::debug!("Borrower: {:?} is healthy with HF: {}", borrower, hf);
             return Ok(None);
         }
 
