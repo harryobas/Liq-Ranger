@@ -67,14 +67,17 @@ impl<M: Middleware> AaveLiquidator<M> {
     async fn generate_liquidations(&self) -> anyhow::Result<Vec<LiquidationCandidate>> {
         let snapshot = self.watch_list.snapshot();
         if snapshot.is_empty() {
+            tracing::info!("Aave Liquidator: No borrowers to check");
             return Ok(vec![]);
         }
+        tracing::info!("Aave Liquidator: Checking {} borrowers", snapshot.len());
+
     
          let results: Vec<_> = stream::iter(snapshot)
         .map(|(borrower, reserve)| async move {
             self.analyze_borrower(borrower, reserve).await
         })
-        .buffer_unordered(4)
+        .buffer_unordered(10)
         .filter_map(|res| async {
             match res {
                 Ok(Some(candidate)) => Some(candidate),
@@ -103,6 +106,7 @@ impl<M: Middleware> AaveLiquidator<M> {
         let (_, _, _, _, _, hf) = self.lending_pool.get_user_account_data(borrower).call().await?;
 
         if hf >= U256::exp10(18) {
+            tracing::info!("Borrower: {:?} is healthy with HF: {}", borrower, hf);
             return Ok(None);
         }
 
@@ -184,8 +188,10 @@ where
     M: Middleware + 'static,
 {
     async fn run(&self, block_number: u64) -> anyhow::Result<()> {
+        tracing::info!("🚀 Running Aave liquidation engine for block {}", block_number);
         let candidates = self.generate_liquidations().await?;
         if candidates.is_empty() {
+            tracing::info!("Aave Liquidator: No unhealthy borrowers to check");
             return Ok(());
         }
 
@@ -229,7 +235,7 @@ where
                 }
             }
         }
-
+        tracing::info!("Aave liquidation cycle completed for block {}", block_number);
         Ok(())
     }
 }

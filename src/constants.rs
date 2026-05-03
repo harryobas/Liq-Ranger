@@ -18,8 +18,8 @@ use dashmap::DashMap;
 // Shared
 pub const CHAIN_ID: u64 = 137;
 pub const SLED_PATH: &str = "./data/sled_db";
-pub const LIQ_EXECUTOR_INTERVAL: u64 = 3;
-pub const PRUNE_INTERVAL: u64 = 30;
+pub const LIQ_EXECUTOR_INTERVAL: u64 = 5;
+pub const PRUNE_INTERVAL: u64 = 50;
 
 pub static DATABASE_URL: Lazy<String> = Lazy::new(|| {
     env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://./data/history.db".to_string())

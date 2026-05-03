@@ -63,18 +63,19 @@ impl<M: Middleware + 'static> MorphoLiquidator<M> {
     pub async fn generate_liquidations(&self) -> anyhow::Result<Vec<LiqCandidate>> {
     let snapshot = self.watch_list.snapshot();
 
-    tracing::info!("Morpho Liquidator: Checking {} borrowers", snapshot.len());
-
-
     if snapshot.is_empty() {
+        tracing::info!("Morpho Liquidator: No borrowers to check");
         return Ok(vec![]);
     }
+
+    tracing::info!("Morpho Liquidator: Checking {} borrowers", snapshot.len());
+
 
     let results: Vec<_> = stream::iter(snapshot)
         .map(|(borrower, market_id)| async move {
             self.analyze_borrower(borrower, market_id.to_fixed_bytes()).await
         })
-        .buffer_unordered(4)
+        .buffer_unordered(10)
         .filter_map(|res| async {
             match res {
                 Ok(Some(candidate)) => Some(candidate),
@@ -97,6 +98,7 @@ async fn analyze_borrower(
      borrower: Address,
      market_id: [u8; 32],
     ) -> anyhow::Result<Option<LiqCandidate>> {
+        tracing::info!("Analyzing borrower: {:?} in market: {:?}", borrower, H256::from(market_id));
 
         let (_, borrow_shares, collateral) =
             self.morpho_blue.position(market_id, borrower).call().await?;
@@ -133,6 +135,7 @@ async fn analyze_borrower(
         };
 
         if position.is_healthy(&market, &market_params.lltv, &price) {
+            tracing::info!("Borrower: {:?} is healthy in market: {:?}", borrower, H256::from(market_id));
             return Ok(None);
         }
 
@@ -280,6 +283,7 @@ where
         tracing::info!("🚀 Running Morpho liquidation engine for block {}", block_number);
         let candidates = self.generate_liquidations().await?;
         if candidates.is_empty() {
+            tracing::info!("Morpho Liquidator: No unhealthy borrowers to check");
             return Ok(());
         }
 
@@ -321,6 +325,7 @@ where
             }      
 
         }
+        tracing::info!("Morpho liquidation cycle completed for block {}", block_number);
         Ok(())
     }
 }
