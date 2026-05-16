@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, ensure, Result};
 use ethers::{
     providers::Middleware,
     types::{Address, U256},
@@ -6,8 +6,8 @@ use ethers::{
 use std::sync::Arc;
 
 use super::{
-    abi_bindings::{AaveOracle, IAaveV3Pool, UiPoolDataProvider},
     aave_config::AaveConfig,
+    abi_bindings::{AaveOracle, IAaveV3Pool, UserReserveData},
     types::CollateralCandidate,
 };
 
@@ -29,14 +29,14 @@ pub async fn liquidation_bonus_bps<M: Middleware + 'static>(
     pool: &IAaveV3Pool<M>,
 ) -> Result<u16> {
     let config = pool.get_configuration(asset).call().await?;
-
     let raw_bonus = ((config.data >> 32) & U256::from(0xFFFF)).as_u32() as u16;
 
-    if raw_bonus <= 10_000 {
-        return Ok(0);
-    }
+    ensure!(
+        raw_bonus >= 10_000 && raw_bonus <= 20_000,
+        "invalid liquidation bonus"
+    );
 
-    Ok(raw_bonus - 10_000)
+    Ok(raw_bonus)
 }
 
 //
@@ -60,8 +60,7 @@ pub async fn compute_debt_to_cover<M: Middleware + 'static>(
         return Ok(U256::zero());
     }
 
-    let threshold =
-        U256::from(HF_LIQUIDATION_THRESHOLD_BPS) * *WAD / U256::from(BPS);
+    let threshold = U256::from(HF_LIQUIDATION_THRESHOLD_BPS) * *WAD / U256::from(BPS);
 
     let close_factor = if health_factor < threshold {
         BPS
@@ -93,10 +92,8 @@ pub async fn estimate_seizable_collateral<M: Middleware + 'static>(
     let collateral_price_call = oracle.get_asset_price(collateral_asset);
     let debt_price_call = oracle.get_asset_price(debt_asset);
 
-    let (collateral_price, debt_price) = tokio::try_join!(
-        collateral_price_call.call(),
-        debt_price_call.call(),
-    )?;
+    let (collateral_price, debt_price) =
+        tokio::try_join!(collateral_price_call.call(), debt_price_call.call(),)?;
 
     let (coll_decimals, debt_decimals) = tokio::try_join!(
         get_token_decimals(collateral_asset, client.clone()),
@@ -122,36 +119,22 @@ pub async fn estimate_seizable_collateral<M: Middleware + 'static>(
 
 //
 // ─────────────────────────────────────────────────────────────
-// Select Best Collateral
+// Select Collateral Candidates
 // ─────────────────────────────────────────────────────────────
 //
 
-pub async fn select_best_collateral<M: Middleware + 'static>(
+pub async fn select_collateral_candidates<M: Middleware + 'static>(
     borrower: Address,
-    pool: &IAaveV3Pool<M>,
-    ui_provider: &UiPoolDataProvider<M>,
-    oracle: &AaveOracle<M>,
+    collaterals: &[&UserReserveData],
     debt_asset: Address,
     debt_to_cover: U256,
+    pool: &IAaveV3Pool<M>,
+    oracle: &AaveOracle<M>,
     client: Arc<M>,
-    config: &AaveConfig,
-) -> Result<CollateralCandidate> {
+) -> Result<Vec<CollateralCandidate>> {
+    let mut candidates = Vec::new();
 
-    let (reserves, _) = ui_provider
-        .get_user_reserves_data(config.pool_address_provider, borrower)
-        .call()
-        .await?;
-
-    let mut best: Option<CollateralCandidate> = None;
-
-    for reserve in reserves {
-
-        if !reserve.usage_as_collateral_enabled_on_user
-            || reserve.scaled_a_token_balance.is_zero()
-        {
-            continue;
-        }
-
+    for reserve in collaterals {
         let asset = reserve.underlying_asset;
 
         let bonus = liquidation_bonus_bps(asset, pool).await?;
@@ -179,25 +162,27 @@ pub async fn select_best_collateral<M: Middleware + 'static>(
         }
 
         let price = oracle.get_asset_price(asset).call().await?;
+        let decimals = get_token_decimals(asset, client.clone()).await?;
+        let usd_value = seize
+            .checked_mul(price)
+            .ok_or_else(|| anyhow!("overflow: collateral amount * price"))?
+            / U256::exp10(decimals as usize);
 
-        let usd_value = seize * price;
-
-        let candidate = CollateralCandidate {
+        candidates.push(CollateralCandidate {
             asset,
             liquidation_bonus_bps: bonus,
             seize_amount: seize,
             usd_value,
-        };
-
-        if best
-            .as_ref()
-            .map_or(true, |b| candidate.usd_value > b.usd_value)
-        {
-            best = Some(candidate);
-        }
+        });
     }
 
-    best.ok_or_else(|| anyhow!("no viable collateral"))
+    candidates.sort_by(|a, b| b.usd_value.cmp(&a.usd_value));
+
+    if candidates.is_empty() {
+        return Err(anyhow!("no viable collateral"));
+    }
+
+    Ok(candidates)
 }
 
 //
@@ -210,7 +195,6 @@ async fn resolve_atoken<M: Middleware + 'static>(
     pool: &IAaveV3Pool<M>,
     asset: Address,
 ) -> Result<Address> {
-
     if let Some(addr) = ATOKENS_ADDR.get(&asset) {
         return Ok(*addr);
     }
@@ -234,7 +218,6 @@ pub async fn has_outstanding_debt<M: Middleware + 'static>(
     pool: &IAaveV3Pool<M>,
     config: &AaveConfig,
 ) -> Result<bool> {
-
     let vdebt = config
         .vdebt_tokens
         .get(&reserve)
