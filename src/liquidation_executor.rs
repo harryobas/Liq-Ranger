@@ -2,11 +2,7 @@ use std::sync::Arc;
 
 use tokio::sync::{broadcast::Receiver, watch, Mutex};
 
-use crate::{
-    common::Liquidator,
-    constants
-
-};
+use crate::{common::Liquidator, constants};
 
 pub struct LiqExecutor {
     liquidators: Vec<Arc<dyn Liquidator>>,
@@ -117,5 +113,111 @@ impl LiqExecutor {
 
         tracing::info!("✅ Liquidation executor stopped cleanly");
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use tokio::sync::Notify;
+    use tokio::time::{timeout, Duration};
+
+    struct FakeLiquidator {
+        calls: AtomicUsize,
+        notify: Notify,
+    }
+
+    impl FakeLiquidator {
+        fn new() -> Arc<Self> {
+            Arc::new(Self {
+                calls: AtomicUsize::new(0),
+                notify: Notify::new(),
+            })
+        }
+
+        async fn wait_for_calls(&self, expected: usize) {
+            timeout(Duration::from_secs(2), async {
+                loop {
+                    if self.calls.load(Ordering::SeqCst) >= expected {
+                        break;
+                    }
+                    self.notify.notified().await;
+                }
+            })
+            .await
+            .expect("expected liquidator calls");
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl Liquidator for FakeLiquidator {
+        async fn run(&self, _block_number: u64) -> anyhow::Result<()> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            self.notify.notify_waiters();
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn runs_only_on_configured_interval() {
+        let fake = FakeLiquidator::new();
+        let (block_tx, block_rx) = tokio::sync::broadcast::channel(16);
+        let (shutdown_tx, shutdown_rx) = watch::channel(false);
+        let executor = LiqExecutor::new(vec![fake.clone()], block_rx, shutdown_rx);
+        let handle = tokio::spawn(executor.start());
+
+        block_tx.send(9).expect("send block");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        assert_eq!(fake.calls.load(Ordering::SeqCst), 0);
+
+        block_tx
+            .send(constants::LIQ_EXECUTOR_INTERVAL)
+            .expect("send block");
+        fake.wait_for_calls(1).await;
+
+        shutdown_tx.send(true).expect("shutdown");
+        handle.await.expect("join").expect("executor");
+    }
+
+    #[tokio::test]
+    async fn ignores_duplicate_and_old_blocks() {
+        let fake = FakeLiquidator::new();
+        let (block_tx, block_rx) = tokio::sync::broadcast::channel(16);
+        let (shutdown_tx, shutdown_rx) = watch::channel(false);
+        let executor = LiqExecutor::new(vec![fake.clone()], block_rx, shutdown_rx);
+        let handle = tokio::spawn(executor.start());
+
+        block_tx.send(10).expect("send block");
+        fake.wait_for_calls(1).await;
+
+        block_tx.send(10).expect("duplicate block");
+        block_tx.send(9).expect("old block");
+        block_tx.send(19).expect("before interval");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        assert_eq!(fake.calls.load(Ordering::SeqCst), 1);
+
+        block_tx.send(20).expect("next interval");
+        fake.wait_for_calls(2).await;
+
+        shutdown_tx.send(true).expect("shutdown");
+        handle.await.expect("join").expect("executor");
+    }
+
+    #[tokio::test]
+    async fn stops_on_shutdown() {
+        let fake = FakeLiquidator::new();
+        let (_block_tx, block_rx) = tokio::sync::broadcast::channel(16);
+        let (shutdown_tx, shutdown_rx) = watch::channel(false);
+        let executor = LiqExecutor::new(vec![fake], block_rx, shutdown_rx);
+
+        let handle = tokio::spawn(executor.start());
+        shutdown_tx.send(true).expect("shutdown");
+
+        timeout(Duration::from_secs(2), handle)
+            .await
+            .expect("executor stopped")
+            .expect("join")
+            .expect("executor");
     }
 }

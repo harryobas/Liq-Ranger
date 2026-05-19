@@ -1,5 +1,8 @@
+use ethers::{
+    signers::{LocalWallet, Signer},
+    types::{Address, H256, U256},
+};
 use std::collections::HashSet;
-use ethers::{signers::{LocalWallet, Signer}, types::{Address, H256, U256}};
 
 use crate::{common::Config, constants};
 
@@ -13,12 +16,11 @@ pub struct MorphoConfig {
     pub block_interval: u64,
     pub keeper_address: Address,
     pub chain_id: u64,
-    pub oracle_price_scale: U256
-
+    pub oracle_price_scale: U256,
 }
 
 impl Config for MorphoConfig {
-     fn load() -> anyhow::Result<Self> {
+    fn load() -> anyhow::Result<Self> {
         let morpho_blue: Address = *constants::MORPHO_BLUE;
         let flash_liquidator: Address = *constants::FLASH_LIQUIDATOR;
         let morpho_markets = constants::MORPHO_MARKETS.clone();
@@ -29,19 +31,18 @@ impl Config for MorphoConfig {
         let keeper_address = wallet.address();
         let chain_id = constants::CHAIN_ID;
         let oracle_price_scale = constants::ORACLE_PRICE_SCALE.clone();
-        Ok(Self { 
-            morpho_blue, 
-            flash_liquidator, 
-            morpho_markets, 
-            rpc_url, 
+        Ok(Self {
+            morpho_blue,
+            flash_liquidator,
+            morpho_markets,
+            rpc_url,
             wallet,
             db_path,
             block_interval,
             keeper_address,
             chain_id,
-            oracle_price_scale
+            oracle_price_scale,
         })
-        
     }
 
     fn keeper_address(&self) -> Address {
@@ -50,5 +51,4 @@ impl Config for MorphoConfig {
     fn chain_id(&self) -> u64 {
         self.chain_id
     }
-      
 }

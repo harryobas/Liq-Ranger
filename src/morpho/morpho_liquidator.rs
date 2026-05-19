@@ -1,36 +1,32 @@
 use anyhow::ensure;
 use ethers::{
-    providers::Middleware, 
-    types::{Address, H256, U256}
+    providers::Middleware,
+    types::{Address, H256, U256},
 };
 
-use std::sync::Arc;
 use futures_util::stream::{self, StreamExt};
+use std::sync::Arc;
 
 use super::{
     abi_bindings::{IMorphoBlue, IOracle, MarketParams},
-    morpho_math::*,
     morpho_config::MorphoConfig,
+    morpho_math::*,
     morpho_watchlist::MorphoWatchList,
-    types::{LiqCandidate,Market, Position, HealthCheck, LiquidationMode},
+    types::{HealthCheck, LiqCandidate, LiquidationMode, Market, Position},
 };
 
-use crate::{common::{
-    Liquidator, 
-    SwapQueryParams, 
-    abi_bindings::{IFlashLiquidator, LiquidationParams}, 
-    create_simulation_sandbox, 
-    execute_liq_tx, 
-    get_token_decimals, 
-    paraswap::ParaSwapClient, 
-    simulate_liq_tx, 
-    simulation_sandbox::AnvilSandbox
-}};
+use crate::common::{
+    abi_bindings::{IFlashLiquidator, LiquidationParams},
+    create_simulation_sandbox, execute_liq_tx, get_token_decimals,
+    paraswap::ParaSwapClient,
+    simulate_liq_tx,
+    simulation_sandbox::AnvilSandbox,
+    Liquidator, SwapQueryParams,
+};
 
 /// ─────────────────────────────────────────────
 /// Liquidation mode (Morpho invariant enforced)
 /// ─────────────────────────────────────────────
-
 
 pub struct MorphoLiquidator<M: Middleware> {
     pub watch_list: Arc<MorphoWatchList>,
@@ -61,57 +57,83 @@ impl<M: Middleware + 'static> MorphoLiquidator<M> {
     /// Scan watchlist → produce liquidation candidates
     /// ─────────────────────────────────────────────
     pub async fn generate_liquidations(&self) -> anyhow::Result<Vec<LiqCandidate>> {
-    let snapshot = self.watch_list.snapshot();
+        let snapshot = self.watch_list.snapshot();
 
-    if snapshot.is_empty() {
-        tracing::info!("Morpho Liquidator: No borrowers to check");
-        return Ok(vec![]);
+        if snapshot.is_empty() {
+            tracing::info!("Morpho Liquidator: No borrowers to check");
+            return Ok(vec![]);
+        }
+
+        tracing::info!("Morpho Liquidator: Checking {} borrowers", snapshot.len());
+
+        let results: Vec<LiqCandidate> =
+            stream::iter(snapshot)
+                .map(|(borrower, markets)| async move {
+                    self.analyze_portfolio(borrower, &markets).await
+                })
+                .buffer_unordered(10)
+                .map(|res| match res {
+                    Ok(candidates) => candidates,
+                    Err(e) => {
+                        tracing::warn!("analyze_portfolio failed: {:?}", e);
+                        vec![]
+                    }
+                })
+                .flat_map(stream::iter) // flatten Vec<Vec<_>>
+                .collect()
+                .await;
+
+        Ok(results)
     }
 
-    tracing::info!("Morpho Liquidator: Checking {} borrowers", snapshot.len());
+    async fn analyze_portfolio(
+        &self,
+        borrower: Address,
+        markets: &[H256],
+    ) -> anyhow::Result<Vec<LiqCandidate>> {
+        let mut candidates = Vec::new();
 
-
-    let results: Vec<_> = stream::iter(snapshot)
-        .map(|(borrower, market_id)| async move {
-            self.analyze_borrower(borrower, market_id.to_fixed_bytes()).await
-        })
-        .buffer_unordered(10)
-        .filter_map(|res| async {
-            match res {
-                Ok(Some(candidate)) => Some(candidate),
-
-                Ok(None) => None,
-                Err(e) => {
-                    tracing::warn!("analyze_borrower failed: {:?}", e);
-                    None
-                }
+        for market_id in markets {
+            if let Some(c) = self
+                .analyze_borrower(borrower, market_id.to_fixed_bytes())
+                .await?
+            {
+                candidates.push(c);
             }
-        })
-        .collect()
-        .await;
+        }
 
-    Ok(results)
-}
+        Ok(candidates)
+    }
 
-async fn analyze_borrower(
-     &self,
-     borrower: Address,
-     market_id: [u8; 32],
+    async fn analyze_borrower(
+        &self,
+        borrower: Address,
+        market_id: [u8; 32],
     ) -> anyhow::Result<Option<LiqCandidate>> {
-        tracing::info!("Analyzing borrower: {:?} in market: {:?}", borrower, H256::from(market_id));
+        tracing::debug!(
+            "Analyzing borrower: {:?} in market: {:?}",
+            borrower,
+            H256::from(market_id)
+        );
 
-        let (_, borrow_shares, collateral) =
-            self.morpho_blue.position(market_id, borrower).call().await?;
+        let (_, borrow_shares, collateral) = self
+            .morpho_blue
+            .position(market_id, borrower)
+            .call()
+            .await?;
 
         if borrow_shares == 0 {
             return Ok(None);
         }
-        
+
         let (_, _, total_borrow_assets, total_borrow_shares, _, _) =
             self.morpho_blue.market(market_id).call().await?;
 
-        let (loan_token, collateral_token, oracle_addr, _, lltv) =
-            self.morpho_blue.id_to_market_params(market_id).call().await?;
+        let (loan_token, collateral_token, oracle_addr, _, lltv) = self
+            .morpho_blue
+            .id_to_market_params(market_id)
+            .call()
+            .await?;
 
         let market = Market {
             total_borrow_assets,
@@ -135,34 +157,28 @@ async fn analyze_borrower(
         };
 
         if position.is_healthy(&market, &market_params.lltv, &price) {
-            tracing::debug!("Borrower: {:?} is healthy in market: {:?}", borrower, H256::from(market_id));
+            tracing::debug!(
+                "Borrower: {:?} is healthy in market: {:?}",
+                borrower,
+                H256::from(market_id)
+            );
             return Ok(None);
         }
 
-        let debt_assets = to_assets_down(
-            U256::from(borrow_shares),
-            U256::from(total_borrow_assets),
-            U256::from(total_borrow_shares),
-        );
+        let total_assets = U256::from(total_borrow_assets);
+        let total_shares = U256::from(total_borrow_shares);
+        let borrow_shares_u256 = U256::from(borrow_shares);
+
+        let debt_assets = to_assets_down(borrow_shares_u256, total_assets, total_shares);
 
         if debt_assets.is_zero() {
             return Ok(None);
         }
 
-        // ─────────────────────────────────────────────
-        // 6. Partial liquidation sizing (50%)
-        // ─────────────────────────────────────────────
-        let close_factor = U256::from_dec_str("850000000000000000")?;
-        let repay_assets = wmul_down(debt_assets, close_factor);
-
-        // ─────────────────────────────────────────────
-        // 7. Incentive & theoretical seize
-        // ─────────────────────────────────────────────
+        // Full-debt sizing for mode selection (theoretical max collateral needed).
         let lif = incentive_factor(lltv);
-        let incentivized_repay = wmul_down(repay_assets, lif);
-
         let required_collateral = mul_div_down(
-            incentivized_repay,
+            wmul_down(debt_assets, lif),
             self.config.oracle_price_scale,
             price,
         );
@@ -173,19 +189,22 @@ async fn analyze_borrower(
         // 8. Decide liquidation mode (CRITICAL)
         // ─────────────────────────────────────────────
         let mode = if available_collateral >= required_collateral {
-            let repaid_shares = to_shares_down(
-                repay_assets,
-                U256::from(total_borrow_assets),
-                U256::from(total_borrow_shares),
+            let seized_for_swap = seized_assets_from_repaid_shares(
+                borrow_shares_u256,
+                total_assets,
+                total_shares,
+                lltv,
+                self.config.oracle_price_scale,
+                price,
             );
 
-            if repaid_shares.is_zero() {
+            if seized_for_swap.is_zero() {
                 return Ok(None);
             }
 
             LiquidationMode::RepayShares {
-                repaid_shares,
-                expected_seized_assets: required_collateral,
+                repaid_shares: borrow_shares_u256,
+                expected_seized_assets: seized_for_swap,
             }
         } else {
             LiquidationMode::SeizeCollateral {
@@ -226,8 +245,7 @@ async fn analyze_borrower(
             chain_id: self.config.chain_id,
             user_address: self.flash_liquidator.address().to_string(),
             slippage_bps: 30,
-            receiver: self.flash_liquidator.address().to_string()
-
+            receiver: self.flash_liquidator.address().to_string(),
         };
 
         let paraswap_client = ParaSwapClient::new();
@@ -236,17 +254,27 @@ async fn analyze_borrower(
         // ─────────────────────────────────────────────
         //  Enforce Morpho invariant
         // ─────────────────────────────────────────────
-        let (repaid_shares, seized_assets) = match mode {
+        let (repaid_shares, seized_assets) = match &mode {
+            LiquidationMode::RepayShares { repaid_shares, .. } => (*repaid_shares, U256::zero()),
+            LiquidationMode::SeizeCollateral { seized_assets } => (U256::zero(), *seized_assets),
+        };
+
+        let debt_to_cover = match &mode {
             LiquidationMode::RepayShares { repaid_shares, .. } => {
-                (repaid_shares, U256::zero())
+                repaid_assets_from_repaid_shares(*repaid_shares, total_assets, total_shares)
             }
-            LiquidationMode::SeizeCollateral { seized_assets } => {
-                (U256::zero(), seized_assets)
-            }
+            LiquidationMode::SeizeCollateral { seized_assets } => repaid_assets_from_seized_collateral(
+                *seized_assets,
+                total_assets,
+                total_shares,
+                lltv,
+                self.config.oracle_price_scale,
+                price,
+            ),
         };
 
         ensure!(
-            route.min_amt_out >= repay_assets, 
+            route.min_amt_out >= debt_to_cover,
             "swap output insufficient to repay debt"
         );
 
@@ -261,7 +289,7 @@ async fn analyze_borrower(
         Ok(Some(LiqCandidate {
             borrower,
             market_id: H256::from(market_id),
-            debt_to_cover: repay_assets,
+            debt_to_cover,
             repaid_shares,
             seized_assets,
             debt_token: loan_token,
@@ -269,7 +297,7 @@ async fn analyze_borrower(
             swap_target: route.swap_target,
             swap_data: route.swap_data,
             swap_proxy: route.token_transfer_proxy,
-            min_amt_out: route.min_amt_out
+            min_amt_out: route.min_amt_out,
         }))
     }
 }
@@ -280,12 +308,20 @@ where
     M: Middleware + 'static,
 {
     async fn run(&self, block_number: u64) -> anyhow::Result<()> {
-        tracing::info!("🚀 Running Morpho liquidation engine for block {}", block_number);
+        tracing::info!(
+            "🚀 Running Morpho liquidation engine for block {}",
+            block_number
+        );
         let candidates = self.generate_liquidations().await?;
         if candidates.is_empty() {
-            tracing::info!("Morpho Liquidator: No unhealthy borrowers to check");
+            tracing::info!("Morpho Liquidator: No liquidation candidates found");
             return Ok(());
         }
+
+        tracing::info!(
+            "Morpho Liquidator: Found {} liquidation candidates",
+            candidates.len()
+        );
 
         let jobs = candidates
             .into_iter()
@@ -296,37 +332,41 @@ where
             })
             .collect::<Vec<_>>();
 
-        let sim_sandbox: AnvilSandbox = create_simulation_sandbox(block_number, &self.flash_liquidator).await?;
+        let sim_sandbox: AnvilSandbox =
+            create_simulation_sandbox(block_number, &self.flash_liquidator).await?;
         let snapshot_id = sim_sandbox.snapshot().await?;
 
         for (loan_amt, liq_params) in &jobs {
-             match simulate_liq_tx(
-                &self.flash_liquidator, 
-                &sim_sandbox, 
-                *loan_amt, 
-                liq_params.clone(), 
-                snapshot_id
-            ).await{
+            match simulate_liq_tx(
+                &self.flash_liquidator,
+                &sim_sandbox,
+                *loan_amt,
+                liq_params.clone(),
+                snapshot_id,
+            )
+            .await
+            {
                 Ok(res) => {
                     if let Err(e) = execute_liq_tx(
-                        *loan_amt, 
-                        liq_params.clone(), 
-                        &self.flash_liquidator, 
-                        res.gas_used
-                    ).await{
+                        *loan_amt,
+                        liq_params.clone(),
+                        &self.flash_liquidator,
+                        res.gas_used,
+                    )
+                    .await
+                    {
                         tracing::error!("liquidation failed: {:?}", e);
-
                     }
-
                 }
                 Err(e) => {
                     tracing::error!("Simulation failed: {:?}", e)
                 }
-            }      
-
+            }
         }
-        tracing::info!("Morpho liquidation cycle completed for block {}", block_number);
+        tracing::info!(
+            "Morpho liquidation cycle completed for block {}",
+            block_number
+        );
         Ok(())
     }
 }
-

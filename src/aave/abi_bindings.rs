@@ -6,7 +6,6 @@ abigen!(
     event_derives(serde::Deserialize, serde::Serialize)
 );
 
-
 abigen!(
     UiPoolDataProvider,
     "src/abis/aave/pool_data.json",

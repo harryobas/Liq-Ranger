@@ -1,25 +1,24 @@
-use std::sync::Arc;
-use ethers::{
-    providers::{Http, Middleware, Provider}, 
-    types::{
-        Address, 
-        Bytes, 
-        TransactionRequest, U256, U64, H256, TransactionReceipt}, utils::{Anvil, AnvilInstance, hex}};
 use crate::constants;
+use ethers::{
+    providers::{Http, Middleware, Provider},
+    types::{Address, Bytes, TransactionReceipt, TransactionRequest, H256, U256, U64},
+    utils::{hex, Anvil, AnvilInstance},
+};
+use std::sync::Arc;
 
 use serde_json::json;
 
 #[derive(Debug)]
-pub struct SimResult{
+pub struct SimResult {
     pub success: bool,
     pub return_data: Bytes,
     pub gas_used: U256,
-    pub revert_reason: Option<String>
+    pub revert_reason: Option<String>,
 }
 
 pub struct AnvilSandbox {
     _anvil: AnvilInstance,
-    pub provider: Arc<Provider<Http>>
+    pub provider: Arc<Provider<Http>>,
 }
 
 impl AnvilSandbox {
@@ -32,53 +31,59 @@ impl AnvilSandbox {
 
         let provider = Arc::new(Provider::<Http>::try_from(anvil.endpoint())?);
 
-        Ok(Self { _anvil: anvil, provider})
+        Ok(Self {
+            _anvil: anvil,
+            provider,
+        })
     }
 
     /// Snapshot current state (fast revert later)
     pub async fn snapshot(&self) -> anyhow::Result<U256> {
         let id: U256 = self.provider.request("evm_snapshot", ()).await?;
         Ok(id)
-
     }
 
-     /// Revert to a snapshot
+    /// Revert to a snapshot
     pub async fn revert(&self, snapshot_id: U256) -> anyhow::Result<()> {
         let hex_id = format!("0x{:x}", snapshot_id);
-        self.provider.request::<_, ()>("evm_revert", [hex_id]).await?;
+        self.provider
+            .request::<_, ()>("evm_revert", [hex_id])
+            .await?;
         Ok(())
     }
 
     /// Inject contract bytecode at a specific address
     pub async fn set_code(&self, address: Address, bytecode: Bytes) -> anyhow::Result<()> {
-        self.provider.request::<[serde_json::Value; 2], ()>(
-            "anvil_setCode",
-            [json!(address), json!(bytecode)],
-        ).await?;
+        self.provider
+            .request::<[serde_json::Value; 2], ()>(
+                "anvil_setCode",
+                [json!(address), json!(bytecode)],
+            )
+            .await?;
         Ok(())
     }
 
-     /// Fund contract or account
+    /// Fund contract or account
     pub async fn set_balance(&self, address: Address, wei: U256) -> anyhow::Result<()> {
-        self.provider.request::<[serde_json::Value; 2], ()>(
-            "anvil_setBalance",
-            [json!(address), json!(format!("0x{:x}", wei))],
-        ).await?;
+        self.provider
+            .request::<[serde_json::Value; 2], ()>(
+                "anvil_setBalance",
+                [json!(address), json!(format!("0x{:x}", wei))],
+            )
+            .await?;
         Ok(())
     }
 
-     /// Impersonate an address
+    /// Impersonate an address
     pub async fn impersonate(&self, address: Address) -> anyhow::Result<()> {
-        self.provider.request::<_, ()>(
-            "anvil_impersonateAccount",
-            [json!(address)],
-        ).await?;
+        self.provider
+            .request::<_, ()>("anvil_impersonateAccount", [json!(address)])
+            .await?;
         Ok(())
     }
 
     /// Simulate a liquidation call
     pub async fn simulate_tx(
-
         &self,
         from: Address,
         to: Address,
@@ -99,14 +104,15 @@ impl AnvilSandbox {
         };
 
         // Send the transaction
-        let hash: H256 = self.provider
+        let hash: H256 = self
+            .provider
             .request("eth_sendTransaction", [tx.clone()])
             .await?;
 
         // Wait for receipt with timeout
         let receipt = tokio::time::timeout(
             std::time::Duration::from_secs(5),
-    self.wait_for_receipt(hash),
+            self.wait_for_receipt(hash),
         )
         .await??;
 
@@ -114,10 +120,11 @@ impl AnvilSandbox {
         result.gas_used = receipt.gas_used.unwrap_or_default();
 
         // Trace the transaction to get return data and revert reason
-        let trace: serde_json::Value = self.provider
+        let trace: serde_json::Value = self
+            .provider
             .request(
-            "debug_traceTransaction",
-        (hash, serde_json::json!({ "tracer": "callTracer" })) 
+                "debug_traceTransaction",
+                (hash, serde_json::json!({ "tracer": "callTracer" })),
             )
             .await?;
         let trace_data = trace.get("result").unwrap_or(&trace);
@@ -129,13 +136,13 @@ impl AnvilSandbox {
         }
 
         if !result.success {
-
-             // Check all common places for revert strings
-            let err_msg = trace_data["error"].as_str()
+            // Check all common places for revert strings
+            let err_msg = trace_data["error"]
+                .as_str()
                 .or_else(|| trace_data["revertReason"].as_str());
 
             if let Some(msg) = err_msg {
-                 result.revert_reason = Some(msg.to_string());
+                result.revert_reason = Some(msg.to_string());
             } else if !result.return_data.is_empty() {
                 // Decode Solidity Error(string) or Panic
                 result.revert_reason = Some(self.decode_revert_from_data(&result.return_data));
@@ -151,17 +158,14 @@ impl AnvilSandbox {
     async fn wait_for_receipt(&self, hash: H256) -> anyhow::Result<TransactionReceipt> {
         if let Some(receipt) = self.provider.get_transaction_receipt(hash).await? {
             return Ok(receipt);
-            
         }
         loop {
             tokio::time::sleep(std::time::Duration::from_millis(5)).await;
             if let Some(receipt) = self.provider.get_transaction_receipt(hash).await? {
-
                 return Ok(receipt);
-            }   
+            }
         }
     }
-   
 
     fn decode_revert_from_data(&self, data: &[u8]) -> String {
         if data.is_empty() {
@@ -170,9 +174,7 @@ impl AnvilSandbox {
 
         // Standard Solidity revert: Error(string) -> 0x08c379a0
         if data.starts_with(&[0x08, 0xc3, 0x79, 0xa0]) && data.len() >= 4 {
-            if let Ok(decoded) = ethers::abi::decode(
-                &[ethers::abi::ParamType::String], 
-                &data[4..]) 
+            if let Ok(decoded) = ethers::abi::decode(&[ethers::abi::ParamType::String], &data[4..])
             {
                 return decoded[0].to_string();
             }
@@ -180,5 +182,41 @@ impl AnvilSandbox {
         // Fallback: show the hex for custom errors or PANICs
         format!("0x{}", hex::encode(data))
     }
+}
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    #[ignore = "requires Anvil and RPC_URL_HTTP"]
+    async fn snapshot_and_revert_round_trip() {
+        let rpc_url = std::env::var("RPC_URL_HTTP").expect("RPC_URL_HTTP");
+        let sandbox = AnvilSandbox::new(&rpc_url, 1).expect("sandbox");
+        let account = Address::from_low_u64_be(1);
+
+        let snapshot = sandbox.snapshot().await.expect("snapshot");
+        sandbox
+            .set_balance(account, U256::from(123u64))
+            .await
+            .expect("set balance");
+        assert_eq!(
+            sandbox
+                .provider
+                .get_balance(account, None)
+                .await
+                .expect("balance"),
+            U256::from(123u64)
+        );
+
+        sandbox.revert(snapshot).await.expect("revert");
+        assert_eq!(
+            sandbox
+                .provider
+                .get_balance(account, None)
+                .await
+                .expect("balance"),
+            U256::zero()
+        );
+    }
 }

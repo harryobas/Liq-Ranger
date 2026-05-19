@@ -1,4 +1,3 @@
-
 use tokio::task::JoinHandle;
 
 use crate::constants::GLOBAL_TASK_HANDLES;
@@ -18,14 +17,14 @@ pub async fn register_task_named(name: &'static str, handle: JoinHandle<()>) {
 pub async fn shutdown_all_tasks() {
     let mut handles = GLOBAL_TASK_HANDLES.lock().await;
     tracing::info!("Shutting down {} tasks", handles.len());
-    
+
     for (i, handle) in handles.drain(..).enumerate() {
         tracing::debug!("Waiting for task {}...", i);
         if let Err(e) = handle.await {
             tracing::error!("Task {} failed to shutdown cleanly: {:?}", i, e);
         }
     }
-    
+
     tracing::info!("All tasks shut down");
 }
 
@@ -34,7 +33,7 @@ pub async fn active_task_count() -> usize {
 }
 
 // For fire-and-forget tasks
-pub async fn spawn_and_register<F>(future: F) 
+pub async fn spawn_and_register<F>(future: F)
 where
     F: std::future::Future<Output = ()> + Send + 'static,
 {
@@ -42,7 +41,7 @@ where
     register_task(handle).await;
 }
 
-pub async fn spawn_named_and_register<F>(name: &'static str, future: F) 
+pub async fn spawn_named_and_register<F>(name: &'static str, future: F)
 where
     F: std::future::Future<Output = ()> + Send + 'static,
 {
@@ -51,7 +50,7 @@ where
         future.await;
         tracing::info!("Task {} completed", name);
     };
-    
+
     let handle = tokio::spawn(task);
     register_task_named(name, handle).await;
 }

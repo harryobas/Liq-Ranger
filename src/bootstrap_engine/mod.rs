@@ -1,17 +1,16 @@
 pub mod aave_bootstrap;
-pub mod morpho_bootstrap;
-pub mod compound_bootstrap;
 pub mod bootstrap_state;
+pub mod compound_bootstrap;
+pub mod morpho_bootstrap;
 
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use serde::{Serialize, Deserialize};
 
-#[async_trait::async_trait] 
-pub trait Bootstrap: Send + Sync { 
-    async fn run(&self) -> anyhow::Result<()>; 
-    fn name(&self) -> &'static str; 
+#[async_trait::async_trait]
+pub trait Bootstrap: Send + Sync {
+    async fn run(&self) -> anyhow::Result<()>;
+    fn name(&self) -> &'static str;
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum Protocol {
@@ -53,6 +52,4 @@ impl BootstrapExecutor {
 
         Ok(())
     }
-
-    
 }

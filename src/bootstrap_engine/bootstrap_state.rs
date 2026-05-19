@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sled::{Tree, Db};
+use sled::{Db, Tree};
 use std::sync::Arc;
 
 use super::Protocol;
@@ -9,7 +9,6 @@ pub struct BootstrapState {
 }
 
 impl BootstrapState {
-
     pub fn new(db: Arc<Db>) -> Result<Self> {
         let tree = db.open_tree("bootstrap:state")?;
         Ok(Self { db: Arc::new(tree) })
@@ -43,5 +42,71 @@ impl BootstrapState {
             Ok(())
         })
         .await?
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_state() -> (tempfile::TempDir, BootstrapState) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db = Arc::new(sled::open(dir.path()).expect("open sled"));
+        let state = BootstrapState::new(db).expect("state");
+        (dir, state)
+    }
+
+    #[tokio::test]
+    async fn missing_protocol_returns_none() {
+        let (_dir, state) = test_state();
+        assert_eq!(
+            state.load_last_block(Protocol::Aave).await.expect("load"),
+            None
+        );
+    }
+
+    #[tokio::test]
+    async fn save_then_load_last_block() {
+        let (_dir, state) = test_state();
+
+        state
+            .save_last_block(Protocol::Aave, 123_456)
+            .await
+            .expect("save");
+
+        assert_eq!(
+            state.load_last_block(Protocol::Aave).await.expect("load"),
+            Some(123_456)
+        );
+    }
+
+    #[tokio::test]
+    async fn protocol_keys_do_not_collide() {
+        let (_dir, state) = test_state();
+
+        state
+            .save_last_block(Protocol::Aave, 100)
+            .await
+            .expect("save aave");
+        state
+            .save_last_block(Protocol::Morpho, 200)
+            .await
+            .expect("save morpho");
+
+        assert_eq!(
+            state.load_last_block(Protocol::Aave).await.expect("load"),
+            Some(100)
+        );
+        assert_eq!(
+            state.load_last_block(Protocol::Morpho).await.expect("load"),
+            Some(200)
+        );
+        assert_eq!(
+            state
+                .load_last_block(Protocol::Compound)
+                .await
+                .expect("load"),
+            None
+        );
     }
 }

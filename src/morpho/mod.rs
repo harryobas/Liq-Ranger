@@ -17,10 +17,7 @@ use watchlist_updater::WatchListUpdater;
 
 use crate::{
     common::{
-        abi_bindings::IFlashLiquidator, 
-        task_manager::spawn_named_and_register, 
-        AdminCmd, 
-        Config,
+        abi_bindings::IFlashLiquidator, task_manager::spawn_named_and_register, AdminCmd, Config,
         Liquidator,
     },
     morpho::abi_bindings::IMorphoBlue,
@@ -36,15 +33,14 @@ pub async fn start_engine<M: Middleware + 'static>(
     f_liq: IFlashLiquidator<M>,
     morpho: IMorphoBlue<M>,
 ) -> anyhow::Result<Arc<dyn Liquidator>> {
+    let config = match MorphoConfig::load() {
+        Ok(c) => Arc::new(c),
+        Err(e) => {
+            tracing::error!("❌ Failed to load Morpho config: {:?}", e);
+            return Err(anyhow::anyhow!("Failed to load Morpho config"));
+        }
+    };
 
-     let config = match MorphoConfig::load() {
-            Ok(c) => Arc::new(c),
-            Err(e) => {
-                tracing::error!("❌ Failed to load Morpho config: {:?}", e);
-                return Err(anyhow::anyhow!("Failed to load Morpho config"));
-            }
-        };
-   
     let morpho_liq = Arc::new(MorphoLiquidator::new(
         morpho.clone(),
         f_liq.clone(),
@@ -61,13 +57,14 @@ pub async fn start_engine<M: Middleware + 'static>(
             Arc::new(morpho),
             config.clone(),
             shutdown_rx,
-            prune_rx
+            prune_rx,
         );
 
         if let Err(e) = updater.start().await {
             tracing::error!("❌ Morpho watch list updater failed: {:?}", e);
         }
-    }).await;
+    })
+    .await;
 
     Ok(morpho_liq)
 }

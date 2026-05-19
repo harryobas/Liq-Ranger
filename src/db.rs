@@ -24,3 +24,36 @@ pub async fn connect(database_url: &str) -> anyhow::Result<SqlitePool> {
 
     Ok(pool)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_db_url() -> (tempfile::TempDir, String) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("history.db");
+        (dir, format!("sqlite://{}", path.display()))
+    }
+
+    #[tokio::test]
+    async fn connect_creates_schema() {
+        let (_dir, url) = temp_db_url();
+        let pool = connect(&url).await.expect("connect");
+
+        let liquidation_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'liquidations'",
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("liquidations table");
+        let distribution_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'distributions'",
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("distributions table");
+
+        assert_eq!(liquidation_count, 1);
+        assert_eq!(distribution_count, 1);
+    }
+}

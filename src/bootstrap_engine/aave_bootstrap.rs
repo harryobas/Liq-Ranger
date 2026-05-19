@@ -1,25 +1,25 @@
 use std::{collections::HashSet, sync::Arc};
 use tokio::time::{sleep, Duration};
 
-use ethers::{types::Address, providers::Middleware};
+use ethers::{providers::Middleware, types::Address};
 
 use crate::{
-    common::WatchList, constants, aave::{abi_bindings::{IAaveV3Pool, BorrowFilter, RepayFilter, LiquidationCallFilter},
-        aave_watchlist::AaveWatchList}
-    };
-
-use super::{
-    bootstrap_state::BootstrapState,
-    Bootstrap,
-    Protocol
+    aave::{
+        aave_watchlist::AaveWatchList,
+        abi_bindings::{BorrowFilter, IAaveV3Pool, LiquidationCallFilter, RepayFilter},
+    },
+    common::WatchList,
+    constants,
 };
+
+use super::{bootstrap_state::BootstrapState, Bootstrap, Protocol};
 
 pub struct AaveBootstrap<M> {
     aave: IAaveV3Pool<M>,
     watch_list: Arc<AaveWatchList>,
     state: Arc<BootstrapState>,
     provider: Arc<M>,
-    deploy_block: u64
+    deploy_block: u64,
 }
 
 impl<M: Middleware + 'static> AaveBootstrap<M> {
@@ -34,34 +34,38 @@ impl<M: Middleware + 'static> AaveBootstrap<M> {
             watch_list,
             state,
             provider,
-            deploy_block: constants::AAVE_DEPLOY_BLOCK
+            deploy_block: constants::AAVE_DEPLOY_BLOCK,
         }
     }
 
     async fn fetch_batch(
-        &self, 
-        aave: &IAaveV3Pool<M>, 
-        start_block: u64, 
-        end_block: u64
-    ) -> anyhow::Result<(Vec<BorrowFilter>, Vec<RepayFilter>, Vec<LiquidationCallFilter>)> {
+        &self,
+        aave: &IAaveV3Pool<M>,
+        start_block: u64,
+        end_block: u64,
+    ) -> anyhow::Result<(
+        Vec<BorrowFilter>,
+        Vec<RepayFilter>,
+        Vec<LiquidationCallFilter>,
+    )> {
         let mut attempts = 0;
 
         loop {
-             let borrow_filter = aave
-            .borrow_filter()
-            .from_block(start_block)
-            .to_block(end_block);
+            let borrow_filter = aave
+                .borrow_filter()
+                .from_block(start_block)
+                .to_block(end_block);
 
             let repay_filter = aave
-            .repay_filter()
-            .from_block(start_block)
-            .to_block(end_block);
+                .repay_filter()
+                .from_block(start_block)
+                .to_block(end_block);
 
             let liq_filter = aave
-            .liquidation_call_filter()
-            .from_block(start_block)
-            .to_block(end_block);
-            
+                .liquidation_call_filter()
+                .from_block(start_block)
+                .to_block(end_block);
+
             match tokio::try_join!(
                 borrow_filter.query(),
                 repay_filter.query(),
@@ -71,33 +75,37 @@ impl<M: Middleware + 'static> AaveBootstrap<M> {
                 Err(e) => {
                     attempts += 1;
                     tracing::warn!(
-                    "⚠️ Aave RPC error [{} → {}] (attempt {}): {:?}",
-                    start_block,
-                    end_block,
-                    attempts,
-                    e
-                );
-                    if attempts >= 5 {
-                        return Err(anyhow::anyhow!(
-                        "Aave RPC failed after retries [{} → {}]: {}",
+                        "⚠️ Aave RPC error [{} → {}] (attempt {}): {:?}",
                         start_block,
                         end_block,
+                        attempts,
                         e
-                      ));
+                    );
+                    if attempts >= 5 {
+                        return Err(anyhow::anyhow!(
+                            "Aave RPC failed after retries [{} → {}]: {}",
+                            start_block,
+                            end_block,
+                            e
+                        ));
                     }
-                    tracing::warn!("Aave RPC error at block {}: {}. Retrying... (Attempt {}/{})", start_block, e, attempts, 5);
-                     // exponential backoff
+                    tracing::warn!(
+                        "Aave RPC error at block {}: {}. Retrying... (Attempt {}/{})",
+                        start_block,
+                        e,
+                        attempts,
+                        5
+                    );
+                    // exponential backoff
                     sleep(Duration::from_secs(2 * attempts)).await;
                 }
             }
-
-            
         }
     }
 }
 
 #[async_trait::async_trait]
-impl<M: Middleware + 'static> Bootstrap  for AaveBootstrap<M> {
+impl<M: Middleware + 'static> Bootstrap for AaveBootstrap<M> {
     async fn run(&self) -> anyhow::Result<()> {
         tracing::info!("starting aave bootstrap");
         let whitelist_reserves = &*constants::AAVE_RESERVES;
@@ -105,19 +113,19 @@ impl<M: Middleware + 'static> Bootstrap  for AaveBootstrap<M> {
 
         let latest_block = self.provider.get_block_number().await?.as_u64();
 
-        let mut start_block = last_block
-            .unwrap_or(self.deploy_block)
-            .saturating_sub(20);
+        let mut start_block = last_block.unwrap_or(self.deploy_block).saturating_sub(20);
 
         let batch_size = 1_000u64;
-        
+
         while start_block <= latest_block {
-             let current_end = (start_block + batch_size).min(latest_block);
-             let mut entries: HashSet<(Address, Address)> = HashSet::new();
+            let current_end = (start_block + batch_size).min(latest_block);
+            let mut entries: HashSet<(Address, Address)> = HashSet::new();
 
-             tracing::info!("Aave bootstrap scanning {} -> {}", start_block, current_end);
+            tracing::info!("Aave bootstrap scanning {} -> {}", start_block, current_end);
 
-            let (borrows, repays, liqs) = self.fetch_batch(&self.aave, start_block, current_end).await?;
+            let (borrows, repays, liqs) = self
+                .fetch_batch(&self.aave, start_block, current_end)
+                .await?;
 
             for ev in borrows.into_iter() {
                 if whitelist_reserves.contains(&ev.reserve) {
@@ -142,17 +150,16 @@ impl<M: Middleware + 'static> Bootstrap  for AaveBootstrap<M> {
                     self.watch_list.add(entry).await?;
                     added_count += 1;
                     tracing::debug!("Added borrower {:?} (reserve {:?})", entry.0, entry.1);
-                   
                 }
-             }
-             if added_count > 0 {
+            }
+            if added_count > 0 {
                 tracing::info!("Successfully indexed {} new Aave positions", added_count);
             }
 
-            self.state.save_last_block(Protocol::Aave, current_end).await?;
+            self.state
+                .save_last_block(Protocol::Aave, current_end)
+                .await?;
             start_block = current_end + 1;
-
-
         }
 
         tracing::info!("Aave bootstrap complete");
@@ -162,5 +169,4 @@ impl<M: Middleware + 'static> Bootstrap  for AaveBootstrap<M> {
     fn name(&self) -> &'static str {
         "aave"
     }
-    
 }

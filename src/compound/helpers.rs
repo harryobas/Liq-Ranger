@@ -1,8 +1,55 @@
 use super::abi_bindings::IComet;
-use ethers::{types::{Address, U256, U512}, providers::Middleware};
+use ethers::{
+    providers::Middleware,
+    types::{Address, U256, U512},
+};
 
-use anyhow::{anyhow,ensure};
+use anyhow::{anyhow, ensure};
 
+fn discounted_base_amount(
+    desired_collateral: U256,
+    price_asset: U256,
+    price_base: U256,
+    store_front_price_factor: U256,
+    base_scale: U256,
+    liquidation_factor: u128,
+    asset_scale: U256,
+) -> anyhow::Result<U256> {
+    let factor_scale = U256::exp10(18);
+
+    ensure!(!price_base.is_zero(), "Base price zero");
+
+    let one_minus_liq = factor_scale
+        .checked_sub(U256::from(liquidation_factor))
+        .ok_or_else(|| anyhow!("liq_factor > 1e18"))?;
+
+    let discount_factor = store_front_price_factor
+        .checked_mul(one_minus_liq)
+        .ok_or_else(|| anyhow!("multiplication overflow"))?
+        / factor_scale;
+
+    let effective_multiplier = factor_scale
+        .checked_sub(discount_factor)
+        .ok_or_else(|| anyhow!("subtraction overflow"))?;
+
+    let numerator = desired_collateral.full_mul(price_asset)
+        * U512::from(effective_multiplier)
+        * U512::from(base_scale);
+
+    let denominator = price_base.full_mul(asset_scale) * U512::from(factor_scale);
+
+    let quotient = numerator / denominator;
+
+    ensure!(
+        quotient >> 256 == U512::zero(),
+        "Overflow in base calculation"
+    );
+
+    let mut buf = [0u8; 64];
+    quotient.to_big_endian(&mut buf);
+
+    Ok(U256::from_big_endian(&buf[32..]))
+}
 
 pub async fn base_amount_for_collateral<M: Middleware + 'static>(
     comet: &IComet<M>,
@@ -25,27 +72,6 @@ pub async fn base_amount_for_collateral<M: Middleware + 'static>(
     let liq_factor = asset_info.liquidation_factor;
     let asset_scale = U256::from(asset_info.scale);
 
-    let factor_scale = U256::exp10(18);
-
-    ensure!(!price_base.is_zero(), "Base price zero");
-
-    // ---------- discountFactor ----------
-    // discountFactor = SFPF * (1e18 - LF) / 1e18
-    let one_minus_liq = factor_scale
-        .checked_sub(U256::from(liq_factor))
-        .ok_or_else(|| anyhow!("liq_factor > 1e18"))?;
-    
-
-    let discount_factor = sfpf
-        .checked_mul(one_minus_liq)
-        .ok_or_else(|| anyhow!("multiplication overflow"))?
-        / factor_scale;
-
-    // effective multiplier applied to asset price
-    let effective_multiplier = factor_scale
-        .checked_sub(discount_factor)
-        .ok_or_else(|| anyhow!("subtraction overflow"))?;
-
     // ---------- Inverted formula ----------
     //
     // base =
@@ -56,44 +82,77 @@ pub async fn base_amount_for_collateral<M: Middleware + 'static>(
     // /
     // (basePrice × assetScale × 1e18)
 
-    let numerator = desired_collateral
-    .full_mul(price_asset)
-    * U512::from(effective_multiplier)
-    * U512::from(base_scale);
-
-    let denominator = price_base
-    .full_mul(asset_scale)
-    * U512::from(factor_scale);
-
-    let quotient = numerator / denominator;
-
-    // Overflow check (must fit in 256 bits)
-    ensure!(
-        quotient >> 256 == U512::zero(),
-       "Overflow in base calculation"
-    );
-
-    let mut buf = [0u8; 64];
-    quotient.to_big_endian(&mut buf);
-
-    // Lower 32 bytes = U256
-    let mut base_required = U256::from_big_endian(&buf[32..]);
+    let mut base_required = discounted_base_amount(
+        desired_collateral,
+        price_asset,
+        price_base,
+        sfpf,
+        base_scale,
+        liq_factor.into(),
+        asset_scale,
+    )?;
 
     // ---------- Rounding correction ----------
-    let actual = comet
-        .quote_collateral(asset, base_required)
-        .call()
-        .await?;
+    let actual = comet.quote_collateral(asset, base_required).call().await?;
 
     if actual < desired_collateral {
         base_required += U256::one();
-        let actual2 = comet
-            .quote_collateral(asset, base_required)
-            .call()
-            .await?;
+        let actual2 = comet.quote_collateral(asset, base_required).call().await?;
         ensure!(actual2 >= desired_collateral, "Rounding adjustment failed");
     }
 
     Ok(base_required.min(max_base_cap))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn discounted_base_amount_rejects_zero_base_price() {
+        let err = discounted_base_amount(
+            U256::one(),
+            U256::one(),
+            U256::zero(),
+            U256::one(),
+            U256::one(),
+            0,
+            U256::one(),
+        )
+        .expect_err("zero base price");
+
+        assert!(err.to_string().contains("Base price zero"));
+    }
+
+    #[test]
+    fn discounted_base_amount_rejects_liquidation_factor_above_one() {
+        let err = discounted_base_amount(
+            U256::one(),
+            U256::one(),
+            U256::one(),
+            U256::one(),
+            U256::one(),
+            1_000_000_000_000_000_001,
+            U256::one(),
+        )
+        .expect_err("invalid liquidation factor");
+
+        assert!(err.to_string().contains("liq_factor > 1e18"));
+    }
+
+    #[test]
+    fn discounted_base_amount_applies_discount_formula() {
+        let amount = discounted_base_amount(
+            U256::from(100u64),
+            U256::from(2u64),
+            U256::from(1u64),
+            U256::from(100_000_000_000_000_000u64),
+            U256::one(),
+            800_000_000_000_000_000,
+            U256::one(),
+        )
+        .expect("formula");
+
+        assert_eq!(amount, U256::from(196u64));
+    }
+}

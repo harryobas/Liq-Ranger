@@ -12,7 +12,30 @@ env:
   RUST_LOG: ${{ secrets.RUST_LOG }}
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            **/target
+            **/.cargo
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Install Rust
+        run: rustup update stable && rustup default stable
+
+      - name: Run tests
+        run: cargo test
+
   build:
+    needs: test
     runs-on: ubuntu-latest
 
     steps:

@@ -1,19 +1,16 @@
-use crate::{common::{
-    DistributionRecord, LiquidationRecord, abi_bindings::{
-        IFlashLiquidator, 
-        IFlashLiquidatorEvents, 
-        PositionLiquidatedFilter,
-        ProfitDistributedFilter}, 
-        get_token_symbol,
-        get_token_decimals,
-    }};
-use std::sync::Arc;
+use crate::common::{
+    abi_bindings::{
+        IFlashLiquidator, IFlashLiquidatorEvents, PositionLiquidatedFilter, ProfitDistributedFilter,
+    },
+    get_token_decimals, get_token_symbol, DistributionRecord, LiquidationRecord,
+};
 use ethers::{
     providers::Middleware,
     types::{Address, U256},
 };
-use tokio::sync::watch;
 use futures_util::{self, StreamExt};
+use std::sync::Arc;
+use tokio::sync::watch;
 
 pub struct LiqDataExtractor<M: Middleware + 'static> {
     flash_liquidator: Arc<IFlashLiquidator<M>>,
@@ -75,19 +72,30 @@ impl<M: Middleware + 'static> LiqDataExtractor<M> {
         Ok(())
     }
 
-    async fn handle_event(&self, evt: IFlashLiquidatorEvents, tx_hash: String, block_number: i64) -> anyhow::Result<()> {
+    async fn handle_event(
+        &self,
+        evt: IFlashLiquidatorEvents,
+        tx_hash: String,
+        block_number: i64,
+    ) -> anyhow::Result<()> {
         match evt {
             IFlashLiquidatorEvents::PositionLiquidatedFilter(e) => {
-                self.handle_liquidation_event(e, &tx_hash, block_number).await
-            },
+                self.handle_liquidation_event(e, &tx_hash, block_number)
+                    .await
+            }
             IFlashLiquidatorEvents::ProfitDistributedFilter(e) => {
                 self.handle_distribution_event(e, &tx_hash).await
-            },
-            _ => Ok(()), 
+            }
+            _ => Ok(()),
         }
     }
 
-    async fn handle_liquidation_event(&self, evt: PositionLiquidatedFilter, tx_hash: &str, block_number: i64) -> anyhow::Result<()> {
+    async fn handle_liquidation_event(
+        &self,
+        evt: PositionLiquidatedFilter,
+        tx_hash: &str,
+        block_number: i64,
+    ) -> anyhow::Result<()> {
         let timestamp = evt.timestamp.as_u64() as i64;
         let borrower = evt.borrower;
         let collateral_asset = evt.collateral_asset;
@@ -109,7 +117,8 @@ impl<M: Middleware + 'static> LiqDataExtractor<M> {
             1 => "Morpho",
             2 => "Compound",
             _ => "Unknown",
-        }.to_string();
+        }
+        .to_string();
 
         let record = LiquidationRecord {
             timestamp,
@@ -129,7 +138,11 @@ impl<M: Middleware + 'static> LiqDataExtractor<M> {
         Ok(())
     }
 
-    async fn handle_distribution_event(&self, evt: ProfitDistributedFilter, tx_hash: &str) -> anyhow::Result<()> {
+    async fn handle_distribution_event(
+        &self,
+        evt: ProfitDistributedFilter,
+        tx_hash: &str,
+    ) -> anyhow::Result<()> {
         let timestamp = evt.timestamp.as_u64() as i64;
         let asset = evt.asset;
 
@@ -158,11 +171,10 @@ impl<M: Middleware + 'static> LiqDataExtractor<M> {
     }
 
     async fn compute_amount(&self, raw_amount: U256, asset: Address) -> anyhow::Result<f64> {
-        let decimals = get_token_decimals(asset, self.provider.clone()).await.unwrap_or_else(|_| 18);
+        let decimals = get_token_decimals(asset, self.provider.clone())
+            .await
+            .unwrap_or_else(|_| 18);
         let amount = ethers::utils::format_units(raw_amount, decimals as usize)?;
         Ok(amount.parse::<f64>().unwrap_or_else(|_| 0.0))
     }
-
 }
-
-   

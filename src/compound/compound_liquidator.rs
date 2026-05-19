@@ -1,31 +1,29 @@
-use std::sync::Arc;
-use anyhow::{Result, ensure};
+use anyhow::{ensure, Result};
 use ethers::{
     providers::Middleware,
     types::{Address, U256},
 };
 use futures_util::{stream, StreamExt};
+use std::sync::Arc;
 
 use super::{
-    types::BuyCollateralParams,
     abi_bindings::IComet,
     compound_watchlist::CompoundWatchList,
     helpers,
     //compound_config::CompoundConfig,
+    types::BuyCollateralParams,
 };
 
-use crate::{common::{
-    self, Liquidator, 
-    SwapQueryParams, abi_bindings::{
-        IFlashLiquidator, 
-        LiquidationParams
+use crate::{
+    common::{
+        self,
+        abi_bindings::{IFlashLiquidator, LiquidationParams},
+        create_simulation_sandbox, execute_liq_tx, get_token_decimals,
+        paraswap::ParaSwapClient,
+        simulate_liq_tx, Liquidator, SwapQueryParams,
     },
-    create_simulation_sandbox, 
-    execute_liq_tx, 
-    get_token_decimals, 
-    paraswap::ParaSwapClient, 
-    simulate_liq_tx
-}, constants};
+    constants,
+};
 
 pub struct CompoundLiquidator<M: Middleware + 'static> {
     pub comet: IComet<M>,
@@ -67,7 +65,8 @@ impl<M: Middleware + 'static> CompoundLiquidator<M> {
         }
 
         // Max collateral purchasable from deficit
-        let max_collateral_from_deficit = self.comet
+        let max_collateral_from_deficit = self
+            .comet
             .quote_collateral(collateral_asset, deficit)
             .call()
             .await?;
@@ -93,7 +92,8 @@ impl<M: Middleware + 'static> CompoundLiquidator<M> {
         }
 
         // Confirm exact collateral received
-        let expected_collateral = self.comet
+        let expected_collateral = self
+            .comet
             .quote_collateral(collateral_asset, base_required)
             .call()
             .await?;
@@ -126,16 +126,11 @@ impl<M: Middleware + 'static> CompoundLiquidator<M> {
         };
 
         let paraswap_client = ParaSwapClient::new();
-        let route = paraswap_client
-            .compose_swap_data(swap_params)
-            .await?;
+        let route = paraswap_client.compose_swap_data(swap_params).await?;
 
         let min_base_out = route.min_amt_out;
 
-        ensure!(
-            min_base_out >= base_required,
-            "Unprofitable after fee"
-        );
+        ensure!(min_base_out >= base_required, "Unprofitable after fee");
 
         Ok(Some(BuyCollateralParams {
             collateral_asset,
@@ -151,52 +146,45 @@ impl<M: Middleware + 'static> CompoundLiquidator<M> {
 
     /// Generates all profitable arbitrage opportunities
     async fn generate_arbs(&self) -> Result<Vec<BuyCollateralParams>> {
+        let snapshot = self.watch_list.snapshot();
+        if snapshot.is_empty() {
+            return Ok(vec![]);
+        }
 
-    let snapshot = self.watch_list.snapshot();
-    if snapshot.is_empty() {
-        return Ok(vec![]);
+        // Fetch global state ONCE per block
+        let base_asset = self.comet.base_token().call().await?;
+        let reserves_i256 = self.comet.get_reserves().call().await?;
+        let target_reserves = self.comet.target_reserves().call().await?;
+
+        let base_reserves = if reserves_i256.is_negative() {
+            U256::zero()
+        } else {
+            reserves_i256.into_raw()
+        };
+
+        if base_reserves >= target_reserves {
+            return Ok(vec![]);
+        }
+
+        let deficit = target_reserves - base_reserves;
+
+        let results: Vec<_> = stream::iter(snapshot)
+            .map(|(collateral_asset, seized_amount)| async move {
+                self.analyze_opportunity(collateral_asset, seized_amount, deficit, base_asset)
+                    .await
+            })
+            .buffer_unordered(4)
+            .filter_map(|res| async {
+                match res {
+                    Ok(Some(p)) => Some(p),
+                    _ => None,
+                }
+            })
+            .collect()
+            .await;
+
+        Ok(results)
     }
-
-    // Fetch global state ONCE per block
-    let base_asset = self.comet.base_token().call().await?;
-    let reserves_i256 = self.comet.get_reserves().call().await?;
-    let target_reserves = self.comet.target_reserves().call().await?;
-
-    let base_reserves = if reserves_i256.is_negative() {
-        U256::zero()
-    } else {
-        reserves_i256.into_raw()
-    };
-
-    if base_reserves >= target_reserves {
-        return Ok(vec![]);
-    }
-
-    let deficit = target_reserves - base_reserves;
-
-    let results: Vec<_> = stream::iter(snapshot)
-        .map(|(collateral_asset, seized_amount)| async move {
-
-            self.analyze_opportunity(
-                collateral_asset,
-                seized_amount,
-                deficit,
-                base_asset,
-            ).await
-        })
-        .buffer_unordered(4)
-        .filter_map(|res| async {
-            match res {
-                Ok(Some(p)) => Some(p),
-                _ => None,
-            }
-        })
-        .collect()
-        .await;
-
-    Ok(results)
-}
- 
 }
 
 #[async_trait::async_trait]
@@ -224,31 +212,32 @@ where
 
         for (debt, liq_params) in jobs {
             match simulate_liq_tx(
-                &self.flash_liquidator, 
-                &sim_sandbox, 
-                debt, 
-                liq_params.clone(), 
-                snapshot_id
-            ).await {
+                &self.flash_liquidator,
+                &sim_sandbox,
+                debt,
+                liq_params.clone(),
+                snapshot_id,
+            )
+            .await
+            {
                 Ok(res) => {
                     if let Err(e) = execute_liq_tx(
-                        debt, 
-                        liq_params.clone(), 
-                        &self.flash_liquidator, 
-                        res.gas_used
-                    ).await{
-                          tracing::error!("liquidation failed: {:?}", e);
+                        debt,
+                        liq_params.clone(),
+                        &self.flash_liquidator,
+                        res.gas_used,
+                    )
+                    .await
+                    {
+                        tracing::error!("liquidation failed: {:?}", e);
                     }
                 }
                 Err(e) => {
                     tracing::error!("Simulation failed: {:?}", e)
                 }
-
-                }
             }
-
-            Ok(())
-
         }
 
+        Ok(())
+    }
 }

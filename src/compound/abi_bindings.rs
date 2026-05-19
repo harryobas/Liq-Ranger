@@ -1,4 +1,3 @@
-
 use ethers::prelude::abigen;
 
 abigen!(

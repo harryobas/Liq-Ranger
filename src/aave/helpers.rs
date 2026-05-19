@@ -18,6 +18,45 @@ use crate::{
 
 const BPS: u128 = 10_000;
 
+fn close_factor_bps(health_factor: U256) -> u128 {
+    let threshold = U256::from(HF_LIQUIDATION_THRESHOLD_BPS) * *WAD / U256::from(BPS);
+
+    if health_factor < threshold {
+        BPS
+    } else {
+        BPS / 2
+    }
+}
+
+fn apply_close_factor(debt: U256, health_factor: U256) -> U256 {
+    debt * U256::from(close_factor_bps(health_factor)) / U256::from(BPS)
+}
+
+fn estimate_seizable_collateral_amount(
+    debt_to_cover: U256,
+    collateral_price: U256,
+    debt_price: U256,
+    coll_decimals: u8,
+    debt_decimals: u8,
+    liquidation_bonus_bps: u16,
+) -> Result<U256> {
+    let numerator = debt_to_cover
+        .checked_mul(debt_price)
+        .ok_or(anyhow!("overflow: debt * price"))?
+        .checked_mul(U256::exp10(coll_decimals as usize))
+        .ok_or(anyhow!("overflow: collateral decimals"))?
+        .checked_mul(U256::from(liquidation_bonus_bps))
+        .ok_or(anyhow!("overflow: bonus"))?;
+
+    let denominator = collateral_price
+        .checked_mul(U256::from(BPS))
+        .ok_or(anyhow!("overflow: price * bps"))?
+        .checked_mul(U256::exp10(debt_decimals as usize))
+        .ok_or(anyhow!("overflow: debt decimals"))?;
+
+    Ok(numerator / denominator)
+}
+
 //
 // ─────────────────────────────────────────────────────────────
 // Liquidation Bonus
@@ -60,15 +99,7 @@ pub async fn compute_debt_to_cover<M: Middleware + 'static>(
         return Ok(U256::zero());
     }
 
-    let threshold = U256::from(HF_LIQUIDATION_THRESHOLD_BPS) * *WAD / U256::from(BPS);
-
-    let close_factor = if health_factor < threshold {
-        BPS
-    } else {
-        BPS / 2
-    };
-
-    Ok(debt * U256::from(close_factor) / U256::from(BPS))
+    Ok(apply_close_factor(debt, health_factor))
 }
 
 //
@@ -100,21 +131,14 @@ pub async fn estimate_seizable_collateral<M: Middleware + 'static>(
         get_token_decimals(debt_asset, client.clone()),
     )?;
 
-    let numerator = debt_to_cover
-        .checked_mul(debt_price)
-        .ok_or(anyhow!("overflow: debt * price"))?
-        .checked_mul(U256::exp10(coll_decimals as usize))
-        .ok_or(anyhow!("overflow: collateral decimals"))?
-        .checked_mul(U256::from(liquidation_bonus_bps))
-        .ok_or(anyhow!("overflow: bonus"))?;
-
-    let denominator = collateral_price
-        .checked_mul(U256::from(BPS))
-        .ok_or(anyhow!("overflow: price * bps"))?
-        .checked_mul(U256::exp10(debt_decimals as usize))
-        .ok_or(anyhow!("overflow: debt decimals"))?;
-
-    Ok(numerator / denominator)
+    estimate_seizable_collateral_amount(
+        debt_to_cover,
+        collateral_price,
+        debt_price,
+        coll_decimals,
+        debt_decimals,
+        liquidation_bonus_bps,
+    )
 }
 
 //
@@ -228,4 +252,49 @@ pub async fn has_outstanding_debt<M: Middleware + 'static>(
     let debt = token.balance_of(borrower).call().await?;
 
     Ok(!debt.is_zero())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn close_factor_is_full_below_liquidation_threshold() {
+        let health_factor = *WAD * U256::from(94u64) / U256::from(100u64);
+        assert_eq!(close_factor_bps(health_factor), 10_000);
+        assert_eq!(
+            apply_close_factor(U256::from(1_000u64), health_factor),
+            U256::from(1_000u64)
+        );
+    }
+
+    #[test]
+    fn close_factor_is_half_at_or_above_threshold() {
+        let health_factor = *WAD * U256::from(95u64) / U256::from(100u64);
+        assert_eq!(close_factor_bps(health_factor), 5_000);
+        assert_eq!(
+            apply_close_factor(U256::from(1_000u64), health_factor),
+            U256::from(500u64)
+        );
+    }
+
+    #[test]
+    fn seizable_collateral_handles_decimals_and_bonus() {
+        // Repay 100 USDC at $1, seize WETH at $2,000 with 5% bonus.
+        let debt_to_cover = U256::from(100_000_000u64);
+        let debt_price = U256::from(100_000_000u64);
+        let collateral_price = U256::from(200_000_000_000u64);
+
+        let seize = estimate_seizable_collateral_amount(
+            debt_to_cover,
+            collateral_price,
+            debt_price,
+            18,
+            6,
+            10_500,
+        )
+        .expect("estimate");
+
+        assert_eq!(seize, U256::from(52_500_000_000_000_000u64));
+    }
 }

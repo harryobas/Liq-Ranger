@@ -25,23 +25,21 @@ pub async fn start_engine<M: Middleware + 'static>(
     shutdown_rx: watch::Receiver<bool>,
     prune_rx: mpsc::Receiver<AdminCmd>,
 ) -> anyhow::Result<Arc<dyn Liquidator>> {
-    let comet_liq = Arc::new(
-        CompoundLiquidator::new(client.clone(), watch_list.clone())
-    );
+    let comet_liq = Arc::new(CompoundLiquidator::new(client.clone(), watch_list.clone()));
 
     spawn_named_and_register("compound_watchlist_updater", async move {
-        
         let updater = CompoundWatchListUpdater::new(
-            watch_list.clone(), 
-            Arc::new(comet), 
-            shutdown_rx, 
-            prune_rx
+            watch_list.clone(),
+            Arc::new(comet),
+            shutdown_rx,
+            prune_rx,
         );
 
         if let Err(e) = updater.start().await {
             tracing::error!("Compound WatchListUpdater error: {:?}", e);
         }
-    }).await;
+    })
+    .await;
 
     Ok(comet_liq)
 }

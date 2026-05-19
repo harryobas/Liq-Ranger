@@ -1,7 +1,7 @@
-use std::sync::Arc;
 use anyhow::Result;
-use ethers::{providers::Middleware};
+use ethers::providers::Middleware;
 use futures_util::StreamExt;
+use std::sync::Arc;
 use tokio::sync::{mpsc, watch};
 
 use super::{
@@ -9,7 +9,7 @@ use super::{
     compound_watchlist::CompoundWatchList,
 };
 
-use crate::common::{WatchList, AdminCmd};
+use crate::common::{AdminCmd, WatchList};
 
 pub struct CompoundWatchListUpdater<M: Middleware + 'static> {
     watch_list: Arc<CompoundWatchList>,
@@ -19,7 +19,6 @@ pub struct CompoundWatchListUpdater<M: Middleware + 'static> {
 }
 
 impl<M: Middleware + Send + Sync + 'static> CompoundWatchListUpdater<M> {
-
     pub fn new(
         watch_list: Arc<CompoundWatchList>,
         comet: Arc<IComet<M>>,
@@ -35,9 +34,7 @@ impl<M: Middleware + Send + Sync + 'static> CompoundWatchListUpdater<M> {
     }
 
     pub fn start(self) -> tokio::task::JoinHandle<Result<()>> {
-        tokio::spawn(async move {
-            self.run().await
-        })
+        tokio::spawn(async move { self.run().await })
     }
 
     async fn run(mut self) -> Result<()> {
@@ -75,7 +72,7 @@ impl<M: Middleware + Send + Sync + 'static> CompoundWatchListUpdater<M> {
                 cmd = self.cmd_rx.recv() => {
                     match cmd {
                         Some(AdminCmd::StatusCheck) => {
-                            tracing::info!(" CompoundWatchList size: {}", 
+                            tracing::info!(" CompoundWatchList size: {}",
                                 self.watch_list.snapshot().len()
                             );
                         }
@@ -97,35 +94,23 @@ impl<M: Middleware + Send + Sync + 'static> CompoundWatchListUpdater<M> {
     }
 
     async fn handle_event(&self, event: ICometEvents) -> Result<()> {
-
         match event {
-
             // 🔥 AbsorbCollateral → increase reserve
             ICometEvents::AbsorbCollateralFilter(f) => {
-
                 self.watch_list
                     .add((f.asset, f.collateral_absorbed))
                     .await?;
 
-                tracing::debug!(
-                    "Absorbed {:?} amount {:?}",
-                    f.asset,
-                    f.collateral_absorbed
-                );
+                tracing::debug!("Absorbed {:?} amount {:?}", f.asset, f.collateral_absorbed);
             }
 
             // 💰 BuyCollateral → decrease reserve
             ICometEvents::BuyCollateralFilter(f) => {
-
                 self.watch_list
                     .remove((f.asset, f.collateral_amount))
                     .await?;
 
-                tracing::debug!(
-                    "Bought {:?} amount {:?}",
-                    f.asset,
-                    f.collateral_amount
-                );
+                tracing::debug!("Bought {:?} amount {:?}", f.asset, f.collateral_amount);
             }
 
             _ => {}

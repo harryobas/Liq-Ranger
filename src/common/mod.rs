@@ -1,22 +1,27 @@
 pub mod abi_bindings;
 pub mod liq_data;
 pub mod paraswap;
-pub mod task_manager;
 pub mod simulation_sandbox;
-
+pub mod task_manager;
 
 use ethers::{
     providers::Middleware,
     signers::Signer,
-    types::{Address, Bytes, H256 as TxHash, U256}
+    types::{Address, Bytes, H256 as TxHash, U256},
 };
 
 use std::sync::Arc;
 
 use crate::{
-    aave::{aave_watchlist::AaveWatchList, abi_bindings::{IAaveV3Pool, AaveOracle, UiPoolDataProvider}},
+    aave::{
+        aave_watchlist::AaveWatchList,
+        abi_bindings::{AaveOracle, IAaveV3Pool, UiPoolDataProvider},
+    },
     bootstrap_engine::bootstrap_state::BootstrapState,
-    common::{abi_bindings::{IERC20, IFlashLiquidator, LiquidationParams}, simulation_sandbox::{AnvilSandbox, SimResult}},
+    common::{
+        abi_bindings::{IFlashLiquidator, LiquidationParams, IERC20},
+        simulation_sandbox::{AnvilSandbox, SimResult},
+    },
     compound::{abi_bindings::IComet, compound_watchlist::CompoundWatchList},
     constants::{self, TOKEN_DECIMAL_CACHE, TOKEN_SYMBOL_CACHE},
     morpho::{abi_bindings::IMorphoBlue, morpho_watchlist::MorphoWatchList},
@@ -51,7 +56,7 @@ pub trait LiquidationContract<M: Middleware + 'static>: Send + Sync {
         &self,
         flash_amt: U256,
         liq_params: LiquidationParams,
-        gas_limit: U256
+        gas_limit: U256,
     ) -> anyhow::Result<TxHash>;
     fn extract_calldata(
         &self,
@@ -79,7 +84,7 @@ pub enum AdminCmd {
     Prune,
     StatusCheck,
 }
-
+#[derive(Debug, Clone)]
 pub struct CoreContracts<M> {
     pub aave: IAaveV3Pool<M>,
     pub aave_oracle: AaveOracle<M>,
@@ -100,7 +105,7 @@ pub async fn execute_liq_tx<M: Middleware + 'static>(
     loan_amt: U256,
     liq_params: LiquidationParams,
     flash_liq: &dyn LiquidationContract<M>,
-    gas_limit: U256
+    gas_limit: U256,
 ) -> anyhow::Result<TxHash> {
     flash_liq.execute_tx(loan_amt, liq_params, gas_limit).await
 }
@@ -112,36 +117,38 @@ pub async fn simulate_liq_tx<M: Middleware + 'static>(
     liq_params: LiquidationParams,
     snap_shot: U256,
 ) -> anyhow::Result<SimResult> {
-
     let target_address = flash_liq.address();
     let keeper_address = constants::WALLET.address();
 
     let calldata = flash_liq.extract_calldata(loan_amt, liq_params)?;
 
-    let result = match sim.simulate_tx(keeper_address, target_address, calldata, U256::zero()).await{
+    let result = match sim
+        .simulate_tx(keeper_address, target_address, calldata, U256::zero())
+        .await
+    {
         Ok(res) => res,
         Err(e) => {
             sim.revert(snap_shot)
-              .await
-              .map_err(|e| anyhow::anyhow!("CRITICAL: failed to revert snapshot: {:?}", e))?;
+                .await
+                .map_err(|e| anyhow::anyhow!("CRITICAL: failed to revert snapshot: {:?}", e))?;
 
             return Err(anyhow::anyhow!("Simulation failed: {:?}", e));
         }
     };
 
-   
     sim.revert(snap_shot)
-      .await
-      .map_err(|e| anyhow::anyhow!("CRITICAL: failed to revert snapshot: {:?}", e))?;
+        .await
+        .map_err(|e| anyhow::anyhow!("CRITICAL: failed to revert snapshot: {:?}", e))?;
 
     if !result.success {
-        let reason = result.revert_reason.clone().unwrap_or_else(|| "Unknown Revert".to_string());
+        let reason = result
+            .revert_reason
+            .clone()
+            .unwrap_or_else(|| "Unknown Revert".to_string());
         return Err(anyhow::anyhow!("Simulation Reverted: {}", reason));
     }
 
     Ok(result)
-
-    
 }
 
 pub async fn get_token_decimals<M: Middleware + 'static>(
@@ -210,7 +217,10 @@ pub fn fetch_watchlists(db: Arc<Db>) -> anyhow::Result<WatchLists> {
     })
 }
 
-pub async fn create_simulation_sandbox<M: Middleware + 'static>(block_number: u64, f_liq: &IFlashLiquidator<M>) -> anyhow::Result<AnvilSandbox> {
+pub async fn create_simulation_sandbox<M: Middleware + 'static>(
+    block_number: u64,
+    f_liq: &IFlashLiquidator<M>,
+) -> anyhow::Result<AnvilSandbox> {
     let sim_sandbox = AnvilSandbox::new(&*constants::RPC_URL_HTTP, block_number)?;
     let bytecode = constants::LIQ_BYTECODE.clone();
     let target_address = f_liq.address();
@@ -218,7 +228,9 @@ pub async fn create_simulation_sandbox<M: Middleware + 'static>(block_number: u6
 
     sim_sandbox.set_code(target_address, bytecode).await?;
     sim_sandbox.impersonate(keeper_address).await?;
-    sim_sandbox.set_balance(keeper_address, U256::exp10(18) * 50).await?;
+    sim_sandbox
+        .set_balance(keeper_address, U256::exp10(18) * 50)
+        .await?;
 
     Ok(sim_sandbox)
 }
@@ -249,7 +261,6 @@ pub struct DistributionRecord {
 }
 
 impl LiquidationRecord {
-
     pub async fn save(&self, pool: &sqlx::SqlitePool) -> anyhow::Result<()> {
         sqlx::query(
             r#"
@@ -257,11 +268,11 @@ impl LiquidationRecord {
                 tx_hash, protocol, borrower, profit_asset, profit_symbol, 
                 collateral_asset, collateral_symbol, profit_amount, block_number, timestamp
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            "#
+            "#,
         )
         .bind(&self.tx_hash)
         .bind(&self.protocol)
-        .bind( self.borrower.to_string())
+        .bind(self.borrower.to_string())
         .bind(self.profit_asset.to_string())
         .bind(&self.profit_symbol)
         .bind(self.collateral_asset.to_string())
@@ -274,19 +285,16 @@ impl LiquidationRecord {
 
         Ok(())
     }
-
-    
 }
 
 impl DistributionRecord {
-    
     pub async fn save(&self, pool: &sqlx::SqlitePool) -> anyhow::Result<()> {
         sqlx::query(
             r#"
             INSERT OR IGNORE INTO distributions (
                 tx_hash, asset, asset_symbol, amount, owner_share, breet_share, timestamp
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            "#
+            "#,
         )
         .bind(&self.tx_hash)
         .bind(&self.asset)
@@ -299,5 +307,71 @@ impl DistributionRecord {
         .await?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn addr(n: u64) -> Address {
+        Address::from_low_u64_be(n)
+    }
+
+    async fn temp_pool() -> (tempfile::TempDir, sqlx::SqlitePool) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("history.db");
+        let url = format!("sqlite://{}", path.display());
+        let pool = crate::db::connect(&url).await.expect("connect sqlite");
+        (dir, pool)
+    }
+
+    #[tokio::test]
+    async fn liquidation_record_save_is_idempotent_by_tx_hash() {
+        let (_dir, pool) = temp_pool().await;
+        let record = LiquidationRecord {
+            timestamp: 1,
+            block_number: 2,
+            protocol: "Aave".to_string(),
+            borrower: addr(1),
+            collateral_asset: addr(2),
+            profit_asset: addr(3),
+            profit_amount: 4.5,
+            profit_symbol: "USDC".to_string(),
+            collateral_symbol: "WETH".to_string(),
+            tx_hash: "0xabc".to_string(),
+        };
+
+        record.save(&pool).await.expect("first save");
+        record.save(&pool).await.expect("duplicate save");
+
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM liquidations")
+            .fetch_one(&pool)
+            .await
+            .expect("count");
+        assert_eq!(count, 1);
+    }
+
+    #[tokio::test]
+    async fn distribution_record_save_is_idempotent_by_tx_hash() {
+        let (_dir, pool) = temp_pool().await;
+        let record = DistributionRecord {
+            tx_hash: "0xdef".to_string(),
+            asset: addr(4).to_string(),
+            asset_symbol: "DAI".to_string(),
+            amount: 10.0,
+            owner_share: 7.0,
+            breet_share: 3.0,
+            timestamp: 11,
+        };
+
+        record.save(&pool).await.expect("first save");
+        record.save(&pool).await.expect("duplicate save");
+
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM distributions")
+            .fetch_one(&pool)
+            .await
+            .expect("count");
+        assert_eq!(count, 1);
     }
 }

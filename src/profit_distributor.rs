@@ -1,16 +1,14 @@
 use std::{
-    collections::HashSet, 
-    str::FromStr, 
-    sync::{Arc, atomic::{AtomicBool, Ordering}}
+    collections::HashSet,
+    str::FromStr,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
-use anyhow::{Result, Context};
-use ethers::{
-    signers::Signer,
-    providers::Middleware,
-    types::Address,
-    utils::format_ether,
-};
+use anyhow::{Context, Result};
+use ethers::{providers::Middleware, signers::Signer, types::Address, utils::format_ether};
 use tokio_cron_scheduler::{Job, JobScheduler};
 
 use crate::{
@@ -114,27 +112,29 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
             format_ether(*constants::GAS_THRESHOLD)
         );
 
-        let accumulated_wpol = self.contract.accumulated_profits(*constants::WPOL).call().await?;
+        let accumulated_wpol = self
+            .contract
+            .accumulated_profits(*constants::WPOL)
+            .call()
+            .await?;
         let refuel_amt = constants::REFUEL_AMT.saturating_sub(gas_balance);
 
         if accumulated_wpol < refuel_amt {
-        tracing::warn!(
-            "⚠️ Gas low, but contract only has {} WPOL (need {}). Skipping refuel.",
-            format_ether(accumulated_wpol),
-            format_ether(refuel_amt)
-        );
-        return Ok(());
+            tracing::warn!(
+                "⚠️ Gas low, but contract only has {} WPOL (need {}). Skipping refuel.",
+                format_ether(accumulated_wpol),
+                format_ether(refuel_amt)
+            );
+            return Ok(());
         }
 
         if refuel_amt.is_zero() {
             return Ok(());
         }
 
-        let call = self.contract
-            .refuel_gas(refuel_amt);
-    
-        let pending = call.send().await.context("Refuel tx submission failed")?;
+        let call = self.contract.refuel_gas(refuel_amt);
 
+        let pending = call.send().await.context("Refuel tx submission failed")?;
 
         let receipt = pending
             .confirmations(Self::CONFIRMATIONS)
@@ -142,11 +142,7 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
             .context("Refuel tx confirmation failed")?
             .ok_or_else(|| anyhow::anyhow!("Refuel transaction dropped or reorged"))?;
 
-
-        tracing::info!(
-            "✅ Gas refueled. Tx: {:?}",
-            receipt.transaction_hash
-        );
+        tracing::info!("✅ Gas refueled. Tx: {:?}", receipt.transaction_hash);
 
         Ok(())
     }
@@ -157,15 +153,13 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
     async fn distribute_all_assets(&self) -> Result<()> {
         let active_assets = self.discover_active_assets().await?;
 
-        tracing::info!("🔍 Scanning {} unique assets for profits...", active_assets.len());
-
+        tracing::info!(
+            "🔍 Scanning {} unique assets for profits...",
+            active_assets.len()
+        );
 
         for asset in active_assets {
-            let profit_amount = self
-                .contract
-                .accumulated_profits(asset)
-                .call()
-                .await?;
+            let profit_amount = self.contract.accumulated_profits(asset).call().await?;
 
             if profit_amount.is_zero() {
                 continue;
@@ -181,20 +175,15 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
             }
 
             let breet_addr = self.breet_address_for(asset);
-            let asset_sym = common::get_token_symbol(
-                asset, 
-                self.client.clone()
-            )
-            .await?;
+            let asset_sym = common::get_token_symbol(asset, self.client.clone()).await?;
 
-            tracing::info!(
-                "💰 Distributing {} of asset {:?}",
-                profit_amount,
-                asset_sym
-            );
+            tracing::info!("💰 Distributing {} of asset {:?}", profit_amount, asset_sym);
 
             let call = self.contract.distribute_profits(asset, breet_addr);
-            let pending = call.send().await.context("Distribution tx submission failed")?;
+            let pending = call
+                .send()
+                .await
+                .context("Distribution tx submission failed")?;
 
             let receipt = pending
                 .confirmations(Self::CONFIRMATIONS)
@@ -212,7 +201,7 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
     }
 
     async fn discover_active_assets(&self) -> Result<HashSet<Address>> {
-        let mut assets  = HashSet::new();
+        let mut assets = HashSet::new();
 
         assets.extend(constants::PROFIT_DIST_ASSETS.iter().cloned());
 
@@ -225,14 +214,13 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
 
         for row in rows {
             if let Some(addr_str) = row.try_get::<String, _>("profit_asset").ok() {
-                 if let Ok(addr) = Address::from_str(&addr_str) {
+                if let Ok(addr) = Address::from_str(&addr_str) {
                     assets.insert(addr);
                 }
             }
         }
 
         Ok(assets)
-
     }
 
     /// Resolve Breet address

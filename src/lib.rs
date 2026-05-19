@@ -4,18 +4,18 @@ mod bootstrap_engine;
 mod common;
 mod compound;
 mod constants;
+mod db;
+mod liq_data_extractor;
 mod liquidation_executor;
 mod morpho;
 mod profit_distributor;
 mod watchlist_pruner;
-mod liq_data_extractor;
-mod db;
 
 use std::{fs, path::Path, sync::Arc};
 
 use ethers::{
     middleware::{NonceManagerMiddleware, SignerMiddleware},
-    providers::{Provider, Ws, Http},
+    providers::{Http, Provider, Ws},
     signers::Signer,
 };
 
@@ -26,19 +26,16 @@ use url::Url;
 use crate::{
     common::{
         fetch_contracts, fetch_watchlists,
-        task_manager::{shutdown_all_tasks,spawn_named_and_register},
-        AdminCmd,
-        Liquidator,
+        task_manager::{shutdown_all_tasks, spawn_named_and_register},
+        AdminCmd, Liquidator,
     },
+    liq_data_extractor::LiqDataExtractor,
     profit_distributor::ProfitDistributor,
     watchlist_pruner::WatchListPruner,
-    liq_data_extractor::LiqDataExtractor,
 };
 use bootstrap_engine::{
-    Bootstrap,
-    aave_bootstrap::AaveBootstrap, 
-    morpho_bootstrap::MorphoBootstrap, 
-    compound_bootstrap::CompoundBootstrap,
+    aave_bootstrap::AaveBootstrap, compound_bootstrap::CompoundBootstrap,
+    morpho_bootstrap::MorphoBootstrap, Bootstrap,
 };
 
 pub async fn start_liquidation_engines() -> anyhow::Result<()> {
@@ -53,10 +50,8 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
     let http_provider_arc = Arc::new(http_provider);
 
     // Middleware Layer: Nonce Management
-    let nonce_manager = NonceManagerMiddleware::new(
-        http_provider_arc.clone(), 
-        constants::WALLET.address()
-    );
+    let nonce_manager =
+        NonceManagerMiddleware::new(http_provider_arc.clone(), constants::WALLET.address());
 
     // Middleware Layer: Signer
     let http_client = Arc::new(SignerMiddleware::new(
@@ -103,12 +98,20 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         Arc::new(CompoundBootstrap::new(
             contracts.comet.clone(),
             w_lists.comet_watchlist.clone(),
-        
         )),
     ];
 
     tracing::info!("Running bootstraps...");
-    bootstrap_engine::BootstrapExecutor { bootstraps }.run_all().await?;
+    bootstrap_engine::BootstrapExecutor { bootstraps }
+        .run_all()
+        .await?;
+
+    let a_contracts = (
+        contracts.aave.clone(),
+        contracts.aave_oracle.clone(),
+        contracts.ui_pool_data_provider.clone(),
+        contracts.flash_liq.clone(),
+    );
 
     let morpho_fut = morpho::start_engine(
         http_client.clone(),
@@ -124,7 +127,7 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         shutdown_rx.clone(),
         aave_rx,
         w_lists.aave_watchlist.clone(),
-        Arc::new(contracts.aave.clone()),
+        a_contracts,
     );
 
     let compound_fut = compound::start_engine(
@@ -134,11 +137,12 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         shutdown_rx.clone(),
         comet_rx,
     );
-    
 
-    let (morpho_res, aave_res, compound_res): (anyhow::Result<Arc<dyn Liquidator>>, anyhow::Result<Arc<dyn Liquidator>>, anyhow::Result<Arc<dyn Liquidator>>) = 
-        tokio::join!(morpho_fut, aave_fut, compound_fut);
-
+    let (morpho_res, aave_res, compound_res): (
+        anyhow::Result<Arc<dyn Liquidator>>,
+        anyhow::Result<Arc<dyn Liquidator>>,
+        anyhow::Result<Arc<dyn Liquidator>>,
+    ) = tokio::join!(morpho_fut, aave_fut, compound_fut);
 
     let morpho_engine: Arc<dyn Liquidator> = morpho_res?;
     let aave_engine: Arc<dyn Liquidator> = aave_res?;
@@ -156,7 +160,8 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         if let Err(e) = executor.start().await {
             tracing::error!("❌ Liquidation executor failed: {:?}", e);
         }
-    }).await;
+    })
+    .await;
 
     // --- Other Components ---
     let mut watchlist_pruner = WatchListPruner::new(
@@ -171,19 +176,21 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         if let Err(e) = watchlist_pruner.start().await {
             tracing::error!("❌ Watchlist pruner failed: {:?}", e);
         }
-    }).await;
+    })
+    .await;
 
     let f_liq = Arc::new(contracts.flash_liq);
     let profit_distributor = Arc::new(ProfitDistributor::new(
-        http_client.clone(), 
-        f_liq.clone(), 
-        sqlite_pool.clone()
+        http_client.clone(),
+        f_liq.clone(),
+        sqlite_pool.clone(),
     ));
     spawn_named_and_register("profit_distributor", async move {
         if let Err(e) = profit_distributor.start().await {
             tracing::error!("❌ Profit_distributor failed: {:?}", e);
         }
-    }).await;
+    })
+    .await;
 
     let liq_data_extractor = LiqDataExtractor::new(
         f_liq.clone(),
@@ -195,19 +202,18 @@ pub async fn start_liquidation_engines() -> anyhow::Result<()> {
         if let Err(e) = liq_data_extractor.start().await {
             tracing::error!("❌ LiqDataExtractor failed: {:?}", e);
         }
-    }).await;
+    })
+    .await;
 
-    let block_watcher = block_watcher::BlockWatcher::new(
-        ws_client.clone(), 
-        block_tx, 
-        shutdown_rx.clone()
-    );
+    let block_watcher =
+        block_watcher::BlockWatcher::new(ws_client.clone(), block_tx, shutdown_rx.clone());
 
     spawn_named_and_register("block_watcher", async move {
         if let Err(e) = block_watcher.start().await {
             tracing::error!("❌ Block watcher failed: {:?}", e);
         }
-    }).await;
+    })
+    .await;
 
     tracing::info!("🚀 Liquidation system started");
     tokio::signal::ctrl_c().await?;
