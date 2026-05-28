@@ -1,0 +1,35 @@
+{
+  "reasoning": [
+    { "id": 1, "tag": "reasoning", "description": "Identifies the exact test file `{{TEST_FILE_PATH}}` and test function `{{TEST_FUNCTION}}` that contains weak assertions.", "weight": "critical", "rationale": "The hollow test must be named.", "dependent_on": [] },
+    { "id": 2, "tag": "reasoning", "description": "States that the test has CRAP < 20 (low complexity) but {{MUTANT_COUNT}} survived mutants, indicating weak validation.", "weight": "critical", "rationale": "Contrast between clean code and weak tests.", "dependent_on": [1] },
+    { "id": 3, "tag": "reasoning", "description": "Pinpoints the exact assertion line(s) `{{WEAK_ASSERTION_LINE}}` that only checks `is_ok()` or similar superficial condition.", "weight": "critical", "rationale": "Location of the hollow assertion.", "dependent_on": [1] },
+    { "id": 4, "tag": "reasoning", "description": "Lists the return fields or state changes that are never verified: {{MISSING_FIELDS}}.", "weight": "critical", "rationale": "Specific missing checks.", "dependent_on": [1] },
+    { "id": 5, "tag": "reasoning", "description": "Explains why the weak assertions allowed mutants to survive (e.g., no assertion on value fields).", "weight": "critical", "rationale": "Root cause of the test gap.", "dependent_on": [4] },
+    { "id": 6, "tag": "reasoning", "description": "Maps at least two survived mutation IDs (`{{MUTANT_ID1}}`, `{{MUTANT_ID2}}`) to the missing fields.", "weight": "critical", "rationale": "Mutant linkage.", "dependent_on": [4] },
+    { "id": 7, "tag": "reasoning", "description": "Describes the production symptom that evades detection: `{{SYMPTOM}}`.", "weight": "critical", "rationale": "User impact.", "dependent_on": [1] },
+    { "id": 8, "tag": "reasoning", "description": "Explains why the bug survives CI (high coverage numbers mask weak assertions).", "weight": "critical", "rationale": "False sense of safety.", "dependent_on": [2] },
+    { "id": 9, "tag": "reasoning", "description": "Proposes the corrected assertion code: `{{CORRECTED_ASSERTION}}`.", "weight": "critical", "rationale": "Actionable fix.", "dependent_on": [6] },
+    { "id": 10, "tag": "reasoning", "description": "(Bonus) Compares with another test in the same suite that has strong assertions, highlighting the contrast.", "weight": "bonus", "rationale": "Contextual depth.", "dependent_on": [1] },
+    { "id": 11, "tag": "reasoning", "description": "(Bonus) Discusses how the hollow assertion pattern could be detected automatically (e.g., mutation testing).", "weight": "bonus", "rationale": "Process improvement.", "dependent_on": [5] },
+    { "id": 12, "tag": "reasoning", "description": "(Bonus) Suggests a property‑based test (e.g., `proptest`) that would cover more edge cases.", "weight": "bonus", "rationale": "Advanced alternative.", "dependent_on": [9] }
+  ],
+  "penalty": [
+    { "id": 13, "tag": "penalty", "description": "Attempts to modify the production code (the code is already clean; the fault lies in the test file).", "weight": "penalty", "rationale": "Wrong target.", "dependent_on": [] },
+    { "id": 14, "tag": "penalty", "description": "Suggests adding more integration tests instead of fixing the unit test assertions.", "weight": "penalty", "rationale": "Integration tests are slower and less precise.", "dependent_on": [] },
+    { "id": 15, "tag": "penalty", "description": "Claims that the function is too complex and needs refactoring (CRAP is already low).", "weight": "penalty", "rationale": "Misdiagnosis.", "dependent_on": [] },
+    { "id": 16, "tag": "penalty", "description": "Proposes deleting the test entirely because it is weak (instead of fixing it).", "weight": "penalty", "rationale": "Destructive, not constructive.", "dependent_on": [] },
+    { "id": 17, "tag": "penalty", "description": "Ignores the mutation log and suggests a blind fix without verifying which mutants are killed.", "weight": "penalty", "rationale": "Unverified solution.", "dependent_on": [] },
+    { "id": 18, "tag": "penalty", "description": "Blames the CI pipeline for not catching the issue instead of the weak assertions.", "weight": "penalty", "rationale": "Shifts responsibility.", "dependent_on": [] }
+  ],
+  "completeness": [
+    { "id": 19, "tag": "completeness", "description": "Cites the exact test file path `{{TEST_FILE_PATH}}` and test function `{{TEST_FUNCTION}}`.", "weight": "critical", "rationale": "Verifiable.", "dependent_on": [] },
+    { "id": 20, "tag": "completeness", "description": "Provides the exact line number of the weak assertion `{{WEAK_ASSERTION_LINE}}`.", "weight": "critical", "rationale": "Precise location.", "dependent_on": [19] },
+    { "id": 21, "tag": "completeness", "description": "References `mutants.md` and lists the survived mutant IDs (e.g., `{{MUTANT_ID1}}`, `{{MUTANT_ID2}}`).", "weight": "critical", "rationale": "Direct evidence.", "dependent_on": [] },
+    { "id": 22, "tag": "completeness", "description": "States the CRAP score ({{CRAP_VALUE}}) and coverage % ({{COVERAGE}}) from `crap.md` for the tested function.", "weight": "critical", "rationale": "Quantifies the illusion.", "dependent_on": [] },
+    { "id": 23, "tag": "completeness", "description": "(Bonus) Mentions the number of total tests in the suite ({{TOTAL_TESTS}}) and that only this test has weak assertions.", "weight": "bonus", "rationale": "Context.", "dependent_on": [] }
+  ],
+  "style": [
+    { "id": 24, "tag": "style", "description": "Uses markdown headings to separate sections: Test Gap Identification, Weak Assertion Location, Missing Fields, Mutant Evidence, Corrected Assertion.", "weight": "bonus", "rationale": "Readability.", "dependent_on": [] },
+    { "id": 25, "tag": "style", "description": "Formats the corrected assertion as a valid Rust code block with proper assertion macros (`assert_eq!`, `assert!`).", "weight": "bonus", "rationale": "Clarity.", "dependent_on": [] }
+  ]
+}

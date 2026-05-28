@@ -1,0 +1,35 @@
+{
+  "reasoning": [
+    { "id": 1, "tag": "reasoning", "description": "Identifies the exact function `{{FUNCTION_NAME}}` in `{{FILE_PATH}}` as the root cause location.", "weight": "critical", "rationale": "The exact function must be named.", "dependent_on": [] },
+    { "id": 2, "tag": "reasoning", "description": "States that the function has CRAP {{CRAP_VALUE}}, cyclomatic complexity {{CC}}, and {{COVERAGE}}% branch coverage.", "weight": "critical", "rationale": "The metrics quantify the risk.", "dependent_on": [1] },
+    { "id": 3, "tag": "reasoning", "description": "Pinpoints the exact uncovered line range(s) `{{LINE_RANGE}}` (from `uncovered.md` or manual inspection).", "weight": "critical", "rationale": "Precise location of the gap.", "dependent_on": [1] },
+    { "id": 4, "tag": "reasoning", "description": "Lists the specific missing test inputs required to traverse the uncovered branch: {{MISSING_INPUTS}}.", "weight": "critical", "rationale": "Covering these inputs would execute the branch.", "dependent_on": [1] },
+    { "id": 5, "tag": "reasoning", "description": "Explains why the missing test inputs are absent (e.g., no test case exercises that path).", "weight": "critical", "rationale": "Understanding the gap's origin.", "dependent_on": [4] },
+    { "id": 6, "tag": "reasoning", "description": "Maps at least two survived mutation IDs (`{{MUTANT_ID1}}`, `{{MUTANT_ID2}}`) to the missing test inputs.", "weight": "critical", "rationale": "Mutant linkage proves the test gap.", "dependent_on": [4] },
+    { "id": 7, "tag": "reasoning", "description": "Describes the observable symptom in production: `{{SYMPTOM}}`.", "weight": "critical", "rationale": "Causal chain from gap to user impact.", "dependent_on": [1] },
+    { "id": 8, "tag": "reasoning", "description": "Explains how the bug survives despite existing tests (e.g., high coverage on other paths masks the gap).", "weight": "critical", "rationale": "Shows why the bug evaded detection.", "dependent_on": [2] },
+    { "id": 9, "tag": "reasoning", "description": "Proposes a concrete, table‑driven unit test (using `#[test_case]`) that would kill the mutants.", "weight": "critical", "rationale": "Actionable fix.", "dependent_on": [6] },
+    { "id": 10, "tag": "reasoning", "description": "(Bonus) Compares with a similar function in another module (e.g., `{{OTHER_FUNCTION}}`) to show the pattern is not isolated.", "weight": "bonus", "rationale": "Cross‑module depth.", "dependent_on": [1] },
+    { "id": 11, "tag": "reasoning", "description": "(Bonus) Discusses the hotspot score (`{{HOTSPOT_SCORE}}`, commits `{{COMMITS}}`) as an additional risk indicator.", "weight": "bonus", "rationale": "Churn + complexity risk.", "dependent_on": [2] },
+    { "id": 12, "tag": "reasoning", "description": "(Bonus) Suggests an alternative design that would prevent such branch gaps (e.g., property‑based testing).", "weight": "bonus", "rationale": "Forward‑looking improvement.", "dependent_on": [9] }
+  ],
+  "penalty": [
+    { "id": 13, "tag": "penalty", "description": "Suggests a cosmetic refactor (renaming, moving code) as the primary fix without adding deep validation tests.", "weight": "penalty", "rationale": "Does not address the coverage gap.", "dependent_on": [] },
+    { "id": 14, "tag": "penalty", "description": "Blames missing integration environment or flaky network instead of test coverage gap.", "weight": "penalty", "rationale": "Shifts responsibility without solution.", "dependent_on": [] },
+    { "id": 15, "tag": "penalty", "description": "Claims the bug is in a different module or unsafe code without evidence.", "weight": "penalty", "rationale": "Misidentifies root cause.", "dependent_on": [] },
+    { "id": 16, "tag": "penalty", "description": "Proposes only adding integration tests (requiring live network) instead of isolated unit tests.", "weight": "penalty", "rationale": "Integration tests are slow and brittle.", "dependent_on": [] },
+    { "id": 17, "tag": "penalty", "description": "Recommends splitting the function without adding any new tests.", "weight": "penalty", "rationale": "Refactoring alone does not kill mutants.", "dependent_on": [] },
+    { "id": 18, "tag": "penalty", "description": "Ignores the mutation evidence and suggests a fix that would not kill the mutants.", "weight": "penalty", "rationale": "Does not address the root gap.", "dependent_on": [] }
+  ],
+  "completeness": [
+    { "id": 19, "tag": "completeness", "description": "Cites the exact file path `{{FILE_PATH}}` and function name `{{FUNCTION_NAME}}`.", "weight": "critical", "rationale": "Verifiable grounding.", "dependent_on": [] },
+    { "id": 20, "tag": "completeness", "description": "Provides the exact line range `{{LINE_RANGE}}`.", "weight": "critical", "rationale": "Precise location.", "dependent_on": [19] },
+    { "id": 21, "tag": "completeness", "description": "References `crap.md` and states the CRAP value ({{CRAP_VALUE}}), cyclomatic complexity ({{CC}}), and coverage % ({{COVERAGE}}).", "weight": "critical", "rationale": "Essential metrics.", "dependent_on": [] },
+    { "id": 22, "tag": "completeness", "description": "References `mutants.md` and cites at least one survived mutant ID (e.g., `{{MUTANT_ID1}}`).", "weight": "critical", "rationale": "Direct linkage to mutation log.", "dependent_on": [] },
+    { "id": 23, "tag": "completeness", "description": "(Bonus) Includes the hotspot score ({{HOTSPOT_SCORE}}) and number of commits ({{COMMITS}}) from `hotspots.json`.", "weight": "bonus", "rationale": "Extra risk quantification.", "dependent_on": [] }
+  ],
+  "style": [
+    { "id": 24, "tag": "style", "description": "Uses markdown headings (`##`, `###`) to separate sections: Root Cause Analysis, Uncovered Branch, Missing Test Inputs, Surviving Mutants, Table‑Driven Test.", "weight": "bonus", "rationale": "Improves readability.", "dependent_on": [] },
+    { "id": 25, "tag": "style", "description": "Formats the table‑driven test as a valid Rust code block with backticks and `#[test_case]` macros.", "weight": "bonus", "rationale": "Clarity for implementation.", "dependent_on": [] }
+  ]
+}

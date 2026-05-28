@@ -1,0 +1,35 @@
+{
+  "reasoning": [
+    { "id": 1, "tag": "reasoning", "description": "Identifies the function `{{IOSP_FUNCTION}}` in `{{FILE_PATH}}` (lines {{LINE_RANGE}}) that violates IOSP by mixing integration (I/O) with operation (domain logic).", "weight": "critical", "rationale": "The violation location must be named.", "dependent_on": [] },
+    { "id": 2, "tag": "reasoning", "description": "Pinpoints the exact integration line(s) `{{INTEGRATION_LINES}}` that perform network/filesystem calls inside the same block as calculation.", "weight": "critical", "rationale": "Separation boundary.", "dependent_on": [1] },
+    { "id": 3, "tag": "reasoning", "description": "Pinpoints the exact operation line(s) `{{OPERATION_LINES}}` that perform pure mathematical or algorithmic logic.", "weight": "critical", "rationale": "The pure part.", "dependent_on": [1] },
+    { "id": 4, "tag": "reasoning", "description": "Explains that this mixing makes unit‑testing impossible without mocking the I/O (e.g., network, filesystem).", "weight": "critical", "rationale": "Testability impact.", "dependent_on": [2] },
+    { "id": 5, "tag": "reasoning", "description": "Extracts the pure calculation into a separate function `{{PURE_FUNCTION}}` that takes only primitive inputs and returns deterministic outputs.", "weight": "critical", "rationale": "Decoupling solution.", "dependent_on": [3] },
+    { "id": 6, "tag": "reasoning", "description": "Rewrites the original function to call the pure helper after performing I/O, removing the mixing.", "weight": "critical", "rationale": "Implementation.", "dependent_on": [5] },
+    { "id": 7, "tag": "reasoning", "description": "Shows that after decoupling, the pure function can be unit‑tested without any mocks.", "weight": "critical", "rationale": "Testability proof.", "dependent_on": [5] },
+    { "id": 8, "tag": "reasoning", "description": "Confirms that the instability index I = {{INSTABILITY}} (from `rustqual`) – the module is at risk.", "weight": "critical", "rationale": "Fragility metric.", "dependent_on": [1] },
+    { "id": 9, "tag": "reasoning", "description": "Explains that this decoupling also improves performance (e.g., caching opportunities).", "weight": "critical", "rationale": "Additional benefit.", "dependent_on": [6] },
+    { "id": 10, "tag": "reasoning", "description": "(Bonus) Compares with another function in the same module that already follows IOSP correctly.", "weight": "bonus", "rationale": "Positive contrast.", "dependent_on": [1] },
+    { "id": 11, "tag": "reasoning", "description": "(Bonus) Suggests using `#[must_use]` for the pure function to enforce result handling.", "weight": "bonus", "rationale": "Rust best practice.", "dependent_on": [5] },
+    { "id": 12, "tag": "reasoning", "description": "(Bonus) Proposes a property‑based test for the pure function to cover edge cases.", "weight": "bonus", "rationale": "Advanced testing.", "dependent_on": [7] }
+  ],
+  "penalty": [
+    { "id": 13, "tag": "penalty", "description": "Introduces more heavy mocking frameworks instead of decoupling the calculations.", "weight": "penalty", "rationale": "Doesn't fix root cause.", "dependent_on": [] },
+    { "id": 14, "tag": "penalty", "description": "Claims that IOSP violation is acceptable because integration tests can cover it.", "weight": "penalty", "rationale": "Ignores unit test isolation.", "dependent_on": [] },
+    { "id": 15, "tag": "penalty", "description": "Suggests keeping the mixed function and adding a `mock` flag to skip I/O (still stateful).", "weight": "penalty", "rationale": "Workaround, not fix.", "dependent_on": [] },
+    { "id": 16, "tag": "penalty", "description": "Proposes rewriting the entire module without understanding the domain logic.", "weight": "penalty", "rationale": "Over‑engineering.", "dependent_on": [] },
+    { "id": 17, "tag": "penalty", "description": "Fails to identify the pure part and suggests refactoring I/O only.", "weight": "penalty", "rationale": "Partial fix.", "dependent_on": [] },
+    { "id": 18, "tag": "penalty", "description": "Claims that the function cannot be decoupled because of external constraints (without justification).", "weight": "penalty", "rationale": "Defeatist.", "dependent_on": [] }
+  ],
+  "completeness": [
+    { "id": 19, "tag": "completeness", "description": "Cites the exact file path `{{FILE_PATH}}`, function name `{{IOSP_FUNCTION}}`, and line range `{{LINE_RANGE}}`.", "weight": "critical", "rationale": "Grounding.", "dependent_on": [] },
+    { "id": 20, "tag": "completeness", "description": "States the instability index value ({{INSTABILITY}}) from `rustqual.json`.", "weight": "critical", "rationale": "Quantified fragility.", "dependent_on": [] },
+    { "id": 21, "tag": "completeness", "description": "References the IOSP violation flag in `rustqual.json` (e.g., `IOSP_Violation`).", "weight": "critical", "rationale": "Tool evidence.", "dependent_on": [] },
+    { "id": 22, "tag": "completeness", "description": "Provides the before and after code snippets for the pure function extraction.", "weight": "critical", "rationale": "Concrete change.", "dependent_on": [5] },
+    { "id": 23, "tag": "completeness", "description": "(Bonus) Mentions the number of integration tests that could be removed after decoupling.", "weight": "bonus", "rationale": "Impact.", "dependent_on": [6] }
+  ],
+  "style": [
+    { "id": 24, "tag": "style", "description": "Uses markdown code blocks to show before/after code with syntax highlighting.", "weight": "bonus", "rationale": "Clarity.", "dependent_on": [] },
+    { "id": 25, "tag": "style", "description": "Organises the answer with headings: Violation Location, Integration vs Operation, Decoupling Plan, Pure Function, Testability Improvement.", "weight": "bonus", "rationale": "Structure.", "dependent_on": [] }
+  ]
+}

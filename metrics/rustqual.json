@@ -1,0 +1,5655 @@
+{
+  "summary": {
+    "total": 234,
+    "integrations": 68,
+    "operations": 79,
+    "violations": 3,
+    "trivial": 84,
+    "suppressed": 0,
+    "all_suppressions": 0,
+    "iosp_score": 0.98,
+    "quality_score": 0.31167863247863214,
+    "complexity_warnings": 3,
+    "magic_number_warnings": 54,
+    "coupling_warnings": 1,
+    "coupling_cycles": 1,
+    "duplicate_groups": 8,
+    "dead_code_warnings": 11,
+    "fragment_groups": 4,
+    "boilerplate_warnings": 1,
+    "srp_struct_warnings": 4,
+    "srp_module_warnings": 1,
+    "srp_param_warnings": 9,
+    "nesting_depth_warnings": 0,
+    "function_length_warnings": 10,
+    "unsafe_warnings": 0,
+    "error_handling_warnings": 3,
+    "wildcard_import_warnings": 1,
+    "sdp_violations": 4,
+    "tq_no_assertion_warnings": 0,
+    "tq_no_sut_warnings": 0,
+    "tq_untested_warnings": 19,
+    "tq_uncovered_warnings": 0,
+    "tq_untested_logic_warnings": 0,
+    "structural_srp_warnings": 6,
+    "structural_coupling_warnings": 0,
+    "repeated_match_groups": 0,
+    "architecture_warnings": 0,
+    "orphan_suppressions": 0,
+    "dimension_scores": [
+      0.98,
+      0.7008547008547008,
+      0.8931623931623932,
+      0.9145299145299145,
+      0.9700854700854701,
+      0.9188034188034188,
+      1.0
+    ],
+    "suppression_ratio_exceeded": false
+  },
+  "functions": [
+    {
+      "name": "new",
+      "file": "src/liq_data_extractor.rs",
+      "line": 23,
+      "parent_type": "LiqDataExtractor<M>",
+      "classification": "trivial",
+      "parameter_count": 4,
+      "is_trait_impl": false
+    },
+    {
+      "name": "start",
+      "file": "src/liq_data_extractor.rs",
+      "line": 37,
+      "parent_type": "LiqDataExtractor<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 37,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "handle_event",
+      "file": "src/liq_data_extractor.rs",
+      "line": 75,
+      "parent_type": "LiqDataExtractor<M>",
+      "classification": "trivial",
+      "parameter_count": 3,
+      "is_trait_impl": false
+    },
+    {
+      "name": "handle_liquidation_event",
+      "file": "src/liq_data_extractor.rs",
+      "line": 93,
+      "parent_type": "LiqDataExtractor<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 3,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 1,
+        "function_lines": 42,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 3,
+      "is_trait_impl": false
+    },
+    {
+      "name": "handle_distribution_event",
+      "file": "src/liq_data_extractor.rs",
+      "line": 141,
+      "parent_type": "LiqDataExtractor<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 2,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 27,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "compute_amount",
+      "file": "src/liq_data_extractor.rs",
+      "line": 173,
+      "parent_type": "LiqDataExtractor<M>",
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 7,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 176,
+            "value": "18"
+          }
+        ]
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "new",
+      "file": "src/profit_distributor.rs",
+      "line": 37,
+      "parent_type": "ProfitDistributor<M>",
+      "classification": "trivial",
+      "parameter_count": 3,
+      "is_trait_impl": false
+    },
+    {
+      "name": "start",
+      "file": "src/profit_distributor.rs",
+      "line": 51,
+      "parent_type": "ProfitDistributor<M>",
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 2,
+        "cyclomatic_complexity": 3,
+        "function_lines": 33,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "execute",
+      "file": "src/profit_distributor.rs",
+      "line": 86,
+      "parent_type": "ProfitDistributor<M>",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "ensure_gas_balance",
+      "file": "src/profit_distributor.rs",
+      "line": 99,
+      "parent_type": "ProfitDistributor<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 5,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 3,
+        "cyclomatic_complexity": 4,
+        "function_lines": 50,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "distribute_all_assets",
+      "file": "src/profit_distributor.rs",
+      "line": 153,
+      "parent_type": "ProfitDistributor<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 4,
+        "call_count": 0,
+        "max_nesting": 2,
+        "cognitive_complexity": 5,
+        "cyclomatic_complexity": 4,
+        "function_lines": 49,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "discover_active_assets",
+      "file": "src/profit_distributor.rs",
+      "line": 203,
+      "parent_type": "ProfitDistributor<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 2,
+        "call_count": 0,
+        "max_nesting": 3,
+        "cognitive_complexity": 6,
+        "cyclomatic_complexity": 4,
+        "function_lines": 22,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "breet_address_for",
+      "file": "src/profit_distributor.rs",
+      "line": 227,
+      "parent_type": "ProfitDistributor<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 4,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 3,
+        "function_lines": 7,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "new",
+      "file": "src/common/simulation_sandbox.rs",
+      "line": 25,
+      "parent_type": "AnvilSandbox",
+      "classification": "trivial",
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "snapshot",
+      "file": "src/common/simulation_sandbox.rs",
+      "line": 41,
+      "parent_type": "AnvilSandbox",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "revert",
+      "file": "src/common/simulation_sandbox.rs",
+      "line": 47,
+      "parent_type": "AnvilSandbox",
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "set_code",
+      "file": "src/common/simulation_sandbox.rs",
+      "line": 56,
+      "parent_type": "AnvilSandbox",
+      "classification": "trivial",
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "set_balance",
+      "file": "src/common/simulation_sandbox.rs",
+      "line": 67,
+      "parent_type": "AnvilSandbox",
+      "classification": "trivial",
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "impersonate",
+      "file": "src/common/simulation_sandbox.rs",
+      "line": 78,
+      "parent_type": "AnvilSandbox",
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "simulate_tx",
+      "file": "src/common/simulation_sandbox.rs",
+      "line": 86,
+      "parent_type": "AnvilSandbox",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 6,
+        "call_count": 3,
+        "max_nesting": 3,
+        "cognitive_complexity": 9,
+        "cyclomatic_complexity": 6,
+        "function_lines": 64,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 114,
+            "value": "5"
+          }
+        ]
+      },
+      "parameter_count": 4,
+      "is_trait_impl": false
+    },
+    {
+      "name": "wait_for_receipt",
+      "file": "src/common/simulation_sandbox.rs",
+      "line": 158,
+      "parent_type": "AnvilSandbox",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 3,
+        "call_count": 0,
+        "max_nesting": 2,
+        "cognitive_complexity": 4,
+        "cyclomatic_complexity": 4,
+        "function_lines": 11,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 163,
+            "value": "5"
+          }
+        ]
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "decode_revert_from_data",
+      "file": "src/common/simulation_sandbox.rs",
+      "line": 170,
+      "parent_type": "AnvilSandbox",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 5,
+        "call_count": 0,
+        "max_nesting": 2,
+        "cognitive_complexity": 4,
+        "cyclomatic_complexity": 5,
+        "function_lines": 15,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 176,
+            "value": "8"
+          },
+          {
+            "line": 176,
+            "value": "195"
+          },
+          {
+            "line": 176,
+            "value": "121"
+          },
+          {
+            "line": 176,
+            "value": "160"
+          },
+          {
+            "line": 176,
+            "value": "4"
+          }
+        ]
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "snapshot_and_revert_round_trip",
+      "file": "src/common/simulation_sandbox.rs",
+      "line": 193,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 4,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 29,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 5,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 200,
+            "value": "123"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "from",
+      "file": "src/common/liq_data.rs",
+      "line": 11,
+      "parent_type": "LiquidationParams",
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": true
+    },
+    {
+      "name": "from",
+      "file": "src/common/liq_data.rs",
+      "line": 35,
+      "parent_type": "LiquidationParams",
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": true
+    },
+    {
+      "name": "from",
+      "file": "src/common/liq_data.rs",
+      "line": 59,
+      "parent_type": "LiquidationParams",
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": true
+    },
+    {
+      "name": "addr",
+      "file": "src/common/liq_data.rs",
+      "line": 87,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "aave_candidate_maps_to_liquidation_params",
+      "file": "src/common/liq_data.rs",
+      "line": 92,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 5,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 25,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 94,
+            "value": "1000"
+          },
+          {
+            "line": 97,
+            "value": "3"
+          },
+          {
+            "line": 98,
+            "value": "4"
+          },
+          {
+            "line": 99,
+            "value": "5"
+          },
+          {
+            "line": 100,
+            "value": "170"
+          },
+          {
+            "line": 100,
+            "value": "187"
+          },
+          {
+            "line": 101,
+            "value": "950"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "morpho_candidate_maps_mode_specific_fields",
+      "file": "src/common/liq_data.rs",
+      "line": 119,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 5,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 29,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 121,
+            "value": "2000"
+          },
+          {
+            "line": 122,
+            "value": "10"
+          },
+          {
+            "line": 123,
+            "value": "300"
+          },
+          {
+            "line": 124,
+            "value": "400"
+          },
+          {
+            "line": 125,
+            "value": "11"
+          },
+          {
+            "line": 126,
+            "value": "12"
+          },
+          {
+            "line": 127,
+            "value": "13"
+          },
+          {
+            "line": 128,
+            "value": "14"
+          },
+          {
+            "line": 129,
+            "value": "204"
+          },
+          {
+            "line": 130,
+            "value": "15"
+          },
+          {
+            "line": 131,
+            "value": "1900"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "compound_buy_collateral_maps_flash_asset_and_limits",
+      "file": "src/common/liq_data.rs",
+      "line": 150,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 4,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 24,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 152,
+            "value": "21"
+          },
+          {
+            "line": 153,
+            "value": "22"
+          },
+          {
+            "line": 154,
+            "value": "5000"
+          },
+          {
+            "line": 155,
+            "value": "6000"
+          },
+          {
+            "line": 156,
+            "value": "23"
+          },
+          {
+            "line": 157,
+            "value": "24"
+          },
+          {
+            "line": 158,
+            "value": "221"
+          },
+          {
+            "line": 159,
+            "value": "4900"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "address",
+      "file": "src/common/abi_bindings.rs",
+      "line": 31,
+      "parent_type": "IFlashLiquidator<M>",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": true
+    },
+    {
+      "name": "extract_calldata",
+      "file": "src/common/abi_bindings.rs",
+      "line": 38,
+      "parent_type": "IFlashLiquidator<M>",
+      "classification": "trivial",
+      "parameter_count": 2,
+      "is_trait_impl": true
+    },
+    {
+      "name": "execute_tx",
+      "file": "src/common/abi_bindings.rs",
+      "line": 48,
+      "parent_type": "IFlashLiquidator<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 4,
+        "call_count": 0,
+        "max_nesting": 2,
+        "cognitive_complexity": 3,
+        "cyclomatic_complexity": 4,
+        "function_lines": 55,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 65,
+            "value": "200000000000"
+          },
+          {
+            "line": 66,
+            "value": "50000000000"
+          },
+          {
+            "line": 74,
+            "value": "120"
+          },
+          {
+            "line": 74,
+            "value": "100"
+          },
+          {
+            "line": 76,
+            "value": "150"
+          },
+          {
+            "line": 76,
+            "value": "100"
+          }
+        ]
+      },
+      "parameter_count": 3,
+      "is_trait_impl": true
+    },
+    {
+      "name": "new",
+      "file": "src/common/paraswap.rs",
+      "line": 45,
+      "parent_type": "ParaSwapClient",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "new_with_base_url",
+      "file": "src/common/paraswap.rs",
+      "line": 53,
+      "parent_type": "ParaSwapClient",
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "get_price_route",
+      "file": "src/common/paraswap.rs",
+      "line": 61,
+      "parent_type": "ParaSwapClient",
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 27,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "build_transaction",
+      "file": "src/common/paraswap.rs",
+      "line": 90,
+      "parent_type": "ParaSwapClient",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 30,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 97,
+            "value": "300"
+          }
+        ]
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "compose_swap_data",
+      "file": "src/common/paraswap.rs",
+      "line": 125,
+      "parent_type": "ParaSwapClient",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 3,
+        "call_count": 2,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 73,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 150,
+            "value": "10000"
+          },
+          {
+            "line": 152,
+            "value": "10000"
+          }
+        ]
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "addr",
+      "file": "src/common/paraswap.rs",
+      "line": 206,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "addr_string",
+      "file": "src/common/paraswap.rs",
+      "line": 210,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "swap_params",
+      "file": "src/common/paraswap.rs",
+      "line": 214,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 4,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 14,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 218,
+            "value": "18"
+          },
+          {
+            "line": 219,
+            "value": "6"
+          },
+          {
+            "line": 222,
+            "value": "137"
+          },
+          {
+            "line": 223,
+            "value": "3"
+          },
+          {
+            "line": 224,
+            "value": "3"
+          },
+          {
+            "line": 225,
+            "value": "50"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "spawn_mock_server",
+      "file": "src/common/paraswap.rs",
+      "line": 229,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "compose_swap_data_builds_price_then_transaction",
+      "file": "src/common/paraswap.rs",
+      "line": 258,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 6,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 44,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 1,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 259,
+            "value": "4"
+          },
+          {
+            "line": 260,
+            "value": "5"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "compose_swap_data_errors_when_dest_amount_missing",
+      "file": "src/common/paraswap.rs",
+      "line": 304,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 4,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 13,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "compose_swap_data_errors_on_invalid_swap_target",
+      "file": "src/common/paraswap.rs",
+      "line": 319,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 4,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 13,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "register_task",
+      "file": "src/common/task_manager.rs",
+      "line": 5,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "register_task_named",
+      "file": "src/common/task_manager.rs",
+      "line": 11,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "shutdown_all_tasks",
+      "file": "src/common/task_manager.rs",
+      "line": 17,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 2,
+        "call_count": 0,
+        "max_nesting": 2,
+        "cognitive_complexity": 3,
+        "cyclomatic_complexity": 3,
+        "function_lines": 13,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "active_task_count",
+      "file": "src/common/task_manager.rs",
+      "line": 31,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "spawn_and_register",
+      "file": "src/common/task_manager.rs",
+      "line": 36,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 4,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "spawn_named_and_register",
+      "file": "src/common/task_manager.rs",
+      "line": 44,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 10,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "execute_liq_tx",
+      "file": "src/common/mod.rs",
+      "line": 104,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 4,
+      "is_trait_impl": false
+    },
+    {
+      "name": "simulate_liq_tx",
+      "file": "src/common/mod.rs",
+      "line": 113,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 3,
+        "max_nesting": 1,
+        "cognitive_complexity": 2,
+        "cyclomatic_complexity": 2,
+        "function_lines": 34,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 5,
+      "is_trait_impl": false
+    },
+    {
+      "name": "get_token_decimals",
+      "file": "src/common/mod.rs",
+      "line": 154,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 11,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "get_token_symbol",
+      "file": "src/common/mod.rs",
+      "line": 169,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 11,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "fetch_contracts",
+      "file": "src/common/mod.rs",
+      "line": 184,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 24,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "fetch_watchlists",
+      "file": "src/common/mod.rs",
+      "line": 211,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 4,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 8,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "create_simulation_sandbox",
+      "file": "src/common/mod.rs",
+      "line": 220,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 4,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 14,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 232,
+            "value": "18"
+          },
+          {
+            "line": 232,
+            "value": "50"
+          }
+        ]
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "save",
+      "file": "src/common/mod.rs",
+      "line": 264,
+      "parent_type": "LiquidationRecord",
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 24,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "save",
+      "file": "src/common/mod.rs",
+      "line": 291,
+      "parent_type": "DistributionRecord",
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 20,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "addr",
+      "file": "src/common/mod.rs",
+      "line": 317,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "temp_pool",
+      "file": "src/common/mod.rs",
+      "line": 321,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "liquidation_record_save_is_idempotent_by_tx_hash",
+      "file": "src/common/mod.rs",
+      "line": 330,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 6,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 24,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 3,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 338,
+            "value": "3"
+          },
+          {
+            "line": 339,
+            "value": "4.5"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "distribution_record_save_is_idempotent_by_tx_hash",
+      "file": "src/common/mod.rs",
+      "line": 356,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 4,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 21,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 3,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 360,
+            "value": "4"
+          },
+          {
+            "line": 362,
+            "value": "10.0"
+          },
+          {
+            "line": 363,
+            "value": "7.0"
+          },
+          {
+            "line": 364,
+            "value": "3.0"
+          },
+          {
+            "line": 365,
+            "value": "11"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "connect",
+      "file": "src/db.rs",
+      "line": 7,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 20,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 8,
+            "value": "60"
+          }
+        ]
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "temp_db_url",
+      "file": "src/db.rs",
+      "line": 32,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "connect_creates_schema",
+      "file": "src/db.rs",
+      "line": 39,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 2,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 20,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 3,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "new",
+      "file": "src/block_watcher.rs",
+      "line": 19,
+      "parent_type": "BlockWatcher<M>",
+      "classification": "trivial",
+      "parameter_count": 3,
+      "is_trait_impl": false
+    },
+    {
+      "name": "start",
+      "file": "src/block_watcher.rs",
+      "line": 27,
+      "parent_type": "BlockWatcher<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 4,
+        "call_count": 0,
+        "max_nesting": 2,
+        "cognitive_complexity": 7,
+        "cyclomatic_complexity": 5,
+        "function_lines": 54,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 47,
+            "value": "5"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "new",
+      "file": "src/bootstrap_engine/morpho_bootstrap.rs",
+      "line": 28,
+      "parent_type": "MorphoBootstrap<M>",
+      "classification": "trivial",
+      "parameter_count": 4,
+      "is_trait_impl": false
+    },
+    {
+      "name": "fetch_batch",
+      "file": "src/bootstrap_engine/morpho_bootstrap.rs",
+      "line": 43,
+      "parent_type": "MorphoBootstrap<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 5,
+        "call_count": 0,
+        "max_nesting": 3,
+        "cognitive_complexity": 6,
+        "cyclomatic_complexity": 4,
+        "function_lines": 55,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 82,
+            "value": "5"
+          }
+        ]
+      },
+      "parameter_count": 3,
+      "is_trait_impl": false
+    },
+    {
+      "name": "run",
+      "file": "src/bootstrap_engine/morpho_bootstrap.rs",
+      "line": 107,
+      "parent_type": "MorphoBootstrap<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 14,
+        "call_count": 6,
+        "max_nesting": 3,
+        "cognitive_complexity": 23,
+        "cyclomatic_complexity": 11,
+        "function_lines": 73,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 115,
+            "value": "20"
+          },
+          {
+            "line": 117,
+            "value": "2000"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": true
+    },
+    {
+      "name": "name",
+      "file": "src/bootstrap_engine/morpho_bootstrap.rs",
+      "line": 181,
+      "parent_type": "MorphoBootstrap<M>",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": true
+    },
+    {
+      "name": "new",
+      "file": "src/bootstrap_engine/bootstrap_state.rs",
+      "line": 12,
+      "parent_type": "BootstrapState",
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "key",
+      "file": "src/bootstrap_engine/bootstrap_state.rs",
+      "line": 17,
+      "parent_type": "BootstrapState",
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "load_last_block",
+      "file": "src/bootstrap_engine/bootstrap_state.rs",
+      "line": 21,
+      "parent_type": "BootstrapState",
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 13,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "save_last_block",
+      "file": "src/bootstrap_engine/bootstrap_state.rs",
+      "line": 35,
+      "parent_type": "BootstrapState",
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 11,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "test_state",
+      "file": "src/bootstrap_engine/bootstrap_state.rs",
+      "line": 52,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 6,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 3,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "missing_protocol_returns_none",
+      "file": "src/bootstrap_engine/bootstrap_state.rs",
+      "line": 60,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 7,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "save_then_load_last_block",
+      "file": "src/bootstrap_engine/bootstrap_state.rs",
+      "line": 69,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 2,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 13,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 1,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 73,
+            "value": "123456"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "protocol_keys_do_not_collide",
+      "file": "src/bootstrap_engine/bootstrap_state.rs",
+      "line": 84,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 3,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 28,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 2,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 88,
+            "value": "100"
+          },
+          {
+            "line": 92,
+            "value": "200"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "new",
+      "file": "src/bootstrap_engine/aave_bootstrap.rs",
+      "line": 26,
+      "parent_type": "AaveBootstrap<M>",
+      "classification": "trivial",
+      "parameter_count": 4,
+      "is_trait_impl": false
+    },
+    {
+      "name": "fetch_batch",
+      "file": "src/bootstrap_engine/aave_bootstrap.rs",
+      "line": 41,
+      "parent_type": "AaveBootstrap<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 5,
+        "call_count": 0,
+        "max_nesting": 3,
+        "cognitive_complexity": 6,
+        "cyclomatic_complexity": 4,
+        "function_lines": 55,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 84,
+            "value": "5"
+          }
+        ]
+      },
+      "parameter_count": 3,
+      "is_trait_impl": false
+    },
+    {
+      "name": "run",
+      "file": "src/bootstrap_engine/aave_bootstrap.rs",
+      "line": 109,
+      "parent_type": "AaveBootstrap<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 14,
+        "call_count": 6,
+        "max_nesting": 3,
+        "cognitive_complexity": 23,
+        "cyclomatic_complexity": 11,
+        "function_lines": 59,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 116,
+            "value": "20"
+          },
+          {
+            "line": 118,
+            "value": "1000"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": true
+    },
+    {
+      "name": "name",
+      "file": "src/bootstrap_engine/aave_bootstrap.rs",
+      "line": 169,
+      "parent_type": "AaveBootstrap<M>",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": true
+    },
+    {
+      "name": "run_all",
+      "file": "src/bootstrap_engine/mod.rs",
+      "line": 27,
+      "parent_type": "BootstrapExecutor",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 3,
+        "call_count": 0,
+        "max_nesting": 2,
+        "cognitive_complexity": 4,
+        "cyclomatic_complexity": 5,
+        "function_lines": 28,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "new",
+      "file": "src/bootstrap_engine/compound_bootstrap.rs",
+      "line": 18,
+      "parent_type": "CompoundBootstrap<M>",
+      "classification": "trivial",
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "run",
+      "file": "src/bootstrap_engine/compound_bootstrap.rs",
+      "line": 28,
+      "parent_type": "CompoundBootstrap<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 3,
+        "call_count": 0,
+        "max_nesting": 2,
+        "cognitive_complexity": 3,
+        "cyclomatic_complexity": 4,
+        "function_lines": 21,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": true
+    },
+    {
+      "name": "name",
+      "file": "src/bootstrap_engine/compound_bootstrap.rs",
+      "line": 50,
+      "parent_type": "CompoundBootstrap<M>",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": true
+    },
+    {
+      "name": "max_liquidation_incentive_factor",
+      "file": "src/constants.rs",
+      "line": 163,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 3,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 164,
+            "value": "115"
+          },
+          {
+            "line": 164,
+            "value": "16"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "oracle_price_scale",
+      "file": "src/constants.rs",
+      "line": 168,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 3,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 169,
+            "value": "36"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "liquidation_cursor",
+      "file": "src/constants.rs",
+      "line": 173,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 3,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 174,
+            "value": "3"
+          },
+          {
+            "line": 174,
+            "value": "17"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "pow10",
+      "file": "src/constants.rs",
+      "line": 177,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "load_private_key",
+      "file": "src/constants.rs",
+      "line": 181,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 1,
+        "function_lines": 10,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 1,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "load_rpc_url",
+      "file": "src/constants.rs",
+      "line": 192,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 1,
+        "function_lines": 6,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 1,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "new",
+      "file": "src/watchlist_pruner.rs",
+      "line": 15,
+      "parent_type": "WatchListPruner",
+      "classification": "trivial",
+      "parameter_count": 6,
+      "is_trait_impl": false
+    },
+    {
+      "name": "start",
+      "file": "src/watchlist_pruner.rs",
+      "line": 33,
+      "parent_type": "WatchListPruner",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 56,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "cmd_channels",
+      "file": "src/watchlist_pruner.rs",
+      "line": 96,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "sends_prune_on_interval_block",
+      "file": "src/watchlist_pruner.rs",
+      "line": 111,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 2,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 33,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 4,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 114,
+            "value": "4"
+          },
+          {
+            "line": 117,
+            "value": "10"
+          },
+          {
+            "line": 120,
+            "value": "10"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "does_not_send_on_non_interval_block",
+      "file": "src/watchlist_pruner.rs",
+      "line": 146,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 2,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 16,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 4,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 148,
+            "value": "4"
+          },
+          {
+            "line": 151,
+            "value": "10"
+          },
+          {
+            "line": 154,
+            "value": "9"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "returns_error_when_block_channel_closed",
+      "file": "src/watchlist_pruner.rs",
+      "line": 164,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 3,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 14,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 1,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 166,
+            "value": "4"
+          },
+          {
+            "line": 169,
+            "value": "10"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "new",
+      "file": "src/compound/compound_liquidator.rs",
+      "line": 37,
+      "parent_type": "CompoundLiquidator<M>",
+      "classification": "trivial",
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "analyze_opportunity",
+      "file": "src/compound/compound_liquidator.rs",
+      "line": 56,
+      "parent_type": "CompoundLiquidator<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 6,
+        "call_count": 2,
+        "max_nesting": 1,
+        "cognitive_complexity": 4,
+        "cyclomatic_complexity": 5,
+        "function_lines": 84,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 106,
+            "value": "997"
+          },
+          {
+            "line": 106,
+            "value": "1000"
+          },
+          {
+            "line": 123,
+            "value": "30"
+          }
+        ]
+      },
+      "parameter_count": 4,
+      "is_trait_impl": false
+    },
+    {
+      "name": "generate_arbs",
+      "file": "src/compound/compound_liquidator.rs",
+      "line": 148,
+      "parent_type": "CompoundLiquidator<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 5,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 4,
+        "cyclomatic_complexity": 4,
+        "function_lines": 40,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 176,
+            "value": "4"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "run",
+      "file": "src/compound/compound_liquidator.rs",
+      "line": 195,
+      "parent_type": "CompoundLiquidator<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 4,
+        "call_count": 4,
+        "max_nesting": 3,
+        "cognitive_complexity": 7,
+        "cyclomatic_complexity": 5,
+        "function_lines": 48,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": true
+    },
+    {
+      "name": "new",
+      "file": "src/compound/compound_watchlist.rs",
+      "line": 29,
+      "parent_type": "CompoundWatchList",
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 17,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "snapshot",
+      "file": "src/compound/compound_watchlist.rs",
+      "line": 49,
+      "parent_type": "CompoundWatchList",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "get",
+      "file": "src/compound/compound_watchlist.rs",
+      "line": 57,
+      "parent_type": "CompoundWatchList",
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 3,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "persist",
+      "file": "src/compound/compound_watchlist.rs",
+      "line": 62,
+      "parent_type": "CompoundWatchList",
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 2,
+        "cyclomatic_complexity": 3,
+        "function_lines": 19,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 72,
+            "value": "32"
+          }
+        ]
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "add",
+      "file": "src/compound/compound_watchlist.rs",
+      "line": 86,
+      "parent_type": "CompoundWatchList",
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 10,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": true
+    },
+    {
+      "name": "remove",
+      "file": "src/compound/compound_watchlist.rs",
+      "line": 98,
+      "parent_type": "CompoundWatchList",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 3,
+        "call_count": 1,
+        "max_nesting": 2,
+        "cognitive_complexity": 3,
+        "cyclomatic_complexity": 3,
+        "function_lines": 16,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": true
+    },
+    {
+      "name": "u256_to_bytes",
+      "file": "src/compound/compound_watchlist.rs",
+      "line": 120,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "bytes_to_u256",
+      "file": "src/compound/compound_watchlist.rs",
+      "line": 126,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "addr",
+      "file": "src/compound/compound_watchlist.rs",
+      "line": 134,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "test_db",
+      "file": "src/compound/compound_watchlist.rs",
+      "line": 138,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "u256_round_trips_big_endian",
+      "file": "src/compound/compound_watchlist.rs",
+      "line": 145,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "add_accumulates_amounts",
+      "file": "src/compound/compound_watchlist.rs",
+      "line": 151,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 3,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 10,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 3,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 156,
+            "value": "10"
+          },
+          {
+            "line": 157,
+            "value": "15"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "remove_decrements_or_deletes",
+      "file": "src/compound/compound_watchlist.rs",
+      "line": 163,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 3,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 16,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 4,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 168,
+            "value": "25"
+          },
+          {
+            "line": 169,
+            "value": "10"
+          },
+          {
+            "line": 174,
+            "value": "15"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "reload_restores_amounts",
+      "file": "src/compound/compound_watchlist.rs",
+      "line": 181,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 4,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 11,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 4,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 183,
+            "value": "3"
+          },
+          {
+            "line": 186,
+            "value": "42"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "new",
+      "file": "src/compound/compound_watchlist_updater.rs",
+      "line": 22,
+      "parent_type": "CompoundWatchListUpdater<M>",
+      "classification": "trivial",
+      "parameter_count": 4,
+      "is_trait_impl": false
+    },
+    {
+      "name": "start",
+      "file": "src/compound/compound_watchlist_updater.rs",
+      "line": 36,
+      "parent_type": "CompoundWatchListUpdater<M>",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "run",
+      "file": "src/compound/compound_watchlist_updater.rs",
+      "line": 40,
+      "parent_type": "CompoundWatchListUpdater<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 55,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "handle_event",
+      "file": "src/compound/compound_watchlist_updater.rs",
+      "line": 96,
+      "parent_type": "CompoundWatchListUpdater<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 3,
+        "function_lines": 25,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "start_engine",
+      "file": "src/compound/mod.rs",
+      "line": 21,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 2,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 19,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 5,
+      "is_trait_impl": false
+    },
+    {
+      "name": "discounted_base_amount",
+      "file": "src/compound/helpers.rs",
+      "line": 9,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 5,
+        "call_count": 0,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 36,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 18,
+            "value": "18"
+          },
+          {
+            "line": 48,
+            "value": "64"
+          }
+        ]
+      },
+      "parameter_count": 7,
+      "is_trait_impl": false
+    },
+    {
+      "name": "base_amount_for_collateral",
+      "file": "src/compound/helpers.rs",
+      "line": 54,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 4,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 2,
+        "cyclomatic_complexity": 4,
+        "function_lines": 47,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 4,
+      "is_trait_impl": false
+    },
+    {
+      "name": "discounted_base_amount_rejects_zero_base_price",
+      "file": "src/compound/helpers.rs",
+      "line": 112,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 14,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "discounted_base_amount_rejects_liquidation_factor_above_one",
+      "file": "src/compound/helpers.rs",
+      "line": 128,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 14,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 135,
+            "value": "1000000000000000001"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "discounted_base_amount_applies_discount_formula",
+      "file": "src/compound/helpers.rs",
+      "line": 144,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 14,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 1,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 146,
+            "value": "100"
+          },
+          {
+            "line": 149,
+            "value": "100000000000000000"
+          },
+          {
+            "line": 151,
+            "value": "800000000000000000"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "main",
+      "file": "src/main.rs",
+      "line": 5,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 18,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "new",
+      "file": "src/morpho/morpho_liquidator.rs",
+      "line": 40,
+      "parent_type": "MorphoLiquidator<M>",
+      "classification": "trivial",
+      "parameter_count": 5,
+      "is_trait_impl": false
+    },
+    {
+      "name": "generate_liquidations",
+      "file": "src/morpho/morpho_liquidator.rs",
+      "line": 59,
+      "parent_type": "MorphoLiquidator<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 2,
+        "cyclomatic_complexity": 2,
+        "function_lines": 29,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 74,
+            "value": "10"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "analyze_portfolio",
+      "file": "src/morpho/morpho_liquidator.rs",
+      "line": 89,
+      "parent_type": "MorphoLiquidator<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 2,
+        "cognitive_complexity": 3,
+        "cyclomatic_complexity": 3,
+        "function_lines": 14,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "analyze_borrower",
+      "file": "src/morpho/morpho_liquidator.rs",
+      "line": 108,
+      "parent_type": "MorphoLiquidator<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 10,
+        "call_count": 9,
+        "max_nesting": 2,
+        "cognitive_complexity": 10,
+        "cyclomatic_complexity": 7,
+        "function_lines": 191,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 247,
+            "value": "30"
+          }
+        ]
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "run",
+      "file": "src/morpho/morpho_liquidator.rs",
+      "line": 310,
+      "parent_type": "MorphoLiquidator<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 4,
+        "call_count": 4,
+        "max_nesting": 3,
+        "cognitive_complexity": 7,
+        "cyclomatic_complexity": 5,
+        "function_lines": 62,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": true
+    },
+    {
+      "name": "new",
+      "file": "src/morpho/watchlist_updater.rs",
+      "line": 27,
+      "parent_type": "WatchListUpdater<M>",
+      "classification": "trivial",
+      "parameter_count": 5,
+      "is_trait_impl": false
+    },
+    {
+      "name": "start",
+      "file": "src/morpho/watchlist_updater.rs",
+      "line": 43,
+      "parent_type": "WatchListUpdater<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 76,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "add_borrow",
+      "file": "src/morpho/watchlist_updater.rs",
+      "line": 120,
+      "parent_type": "WatchListUpdater<M>",
+      "classification": "trivial",
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "remove_if_cleared",
+      "file": "src/morpho/watchlist_updater.rs",
+      "line": 131,
+      "parent_type": "WatchListUpdater<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 16,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "prune_watchlist",
+      "file": "src/morpho/watchlist_updater.rs",
+      "line": 147,
+      "parent_type": "WatchListUpdater<M>",
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 3,
+        "cognitive_complexity": 6,
+        "cyclomatic_complexity": 5,
+        "function_lines": 40,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 153,
+            "value": "4"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "min",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 7,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 2,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 7,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "max",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 16,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 2,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 7,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "mul_div_down",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 25,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 3,
+      "is_trait_impl": false
+    },
+    {
+      "name": "mul_div_up",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 33,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 2,
+        "call_count": 0,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 4,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 2,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 3,
+      "is_trait_impl": false
+    },
+    {
+      "name": "wmul_down",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 39,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 3,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "wdiv_down",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 44,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 3,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "wdiv_up",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 49,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 3,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "to_assets_down",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 54,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 2,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 7,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 3,
+      "is_trait_impl": false
+    },
+    {
+      "name": "to_assets_up",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 63,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 2,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 7,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 3,
+      "is_trait_impl": false
+    },
+    {
+      "name": "to_shares_down",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 72,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 2,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 7,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 3,
+      "is_trait_impl": false
+    },
+    {
+      "name": "to_shares_up",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 81,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 2,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 7,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 3,
+      "is_trait_impl": false
+    },
+    {
+      "name": "seized_assets_from_repaid_shares",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 91,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 4,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 9,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 6,
+      "is_trait_impl": false
+    },
+    {
+      "name": "repaid_assets_from_repaid_shares",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 110,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 3,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 3,
+      "is_trait_impl": false
+    },
+    {
+      "name": "repaid_assets_from_seized_collateral",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 120,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 5,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 6,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 6,
+      "is_trait_impl": false
+    },
+    {
+      "name": "incentive_factor",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 135,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 2,
+        "call_count": 3,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 6,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "mul_div_rounding_matches_expected_direction",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 147,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "share_asset_conversions_include_virtual_offsets",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 157,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "mul_div_up_exact_division_does_not_round",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 175,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "mul_div_down_panics_on_zero_denominator",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 184,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 3,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "to_assets_up_rounds_up",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 189,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "incentive_factor_caps_at_max",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 197,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "repaid_assets_from_shares_rounds_up",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 205,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "seized_from_repaid_shares_is_at_most_theoretical",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 221,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 5,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 18,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 222,
+            "value": "100"
+          },
+          {
+            "line": 223,
+            "value": "1000000"
+          },
+          {
+            "line": 224,
+            "value": "2000000"
+          },
+          {
+            "line": 225,
+            "value": "860000000000000000"
+          },
+          {
+            "line": 226,
+            "value": "10"
+          },
+          {
+            "line": 226,
+            "value": "36"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "load",
+      "file": "src/morpho/morpho_config.rs",
+      "line": 23,
+      "parent_type": "MorphoConfig",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": true
+    },
+    {
+      "name": "keeper_address",
+      "file": "src/morpho/morpho_config.rs",
+      "line": 48,
+      "parent_type": "MorphoConfig",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": true
+    },
+    {
+      "name": "chain_id",
+      "file": "src/morpho/morpho_config.rs",
+      "line": 51,
+      "parent_type": "MorphoConfig",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": true
+    },
+    {
+      "name": "is_healthy",
+      "file": "src/morpho/types.rs",
+      "line": 47,
+      "parent_type": "Position",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 5,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 17,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 3,
+      "is_trait_impl": true
+    },
+    {
+      "name": "half_wad",
+      "file": "src/morpho/types.rs",
+      "line": 70,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 3,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "position_is_healthy_when_max_borrow_covers_debt_up",
+      "file": "src/morpho/types.rs",
+      "line": 75,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "position_is_unhealthy_at_boundary_with_up_rounding",
+      "file": "src/morpho/types.rs",
+      "line": 90,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "position_is_unhealthy_when_borrow_exceeds_lltv",
+      "file": "src/morpho/types.rs",
+      "line": 105,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "health_check_respects_virtual_share_conversion",
+      "file": "src/morpho/types.rs",
+      "line": 119,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "new",
+      "file": "src/morpho/morpho_watchlist.rs",
+      "line": 22,
+      "parent_type": "MorphoWatchList",
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "snapshot",
+      "file": "src/morpho/morpho_watchlist.rs",
+      "line": 41,
+      "parent_type": "MorphoWatchList",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "persist",
+      "file": "src/morpho/morpho_watchlist.rs",
+      "line": 56,
+      "parent_type": "MorphoWatchList",
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 2,
+        "cyclomatic_complexity": 3,
+        "function_lines": 21,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 67,
+            "value": "32"
+          }
+        ]
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "contains",
+      "file": "src/morpho/morpho_watchlist.rs",
+      "line": 78,
+      "parent_type": "MorphoWatchList",
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 6,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "add",
+      "file": "src/morpho/morpho_watchlist.rs",
+      "line": 88,
+      "parent_type": "MorphoWatchList",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 11,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": true
+    },
+    {
+      "name": "remove",
+      "file": "src/morpho/morpho_watchlist.rs",
+      "line": 100,
+      "parent_type": "MorphoWatchList",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 3,
+        "call_count": 1,
+        "max_nesting": 2,
+        "cognitive_complexity": 5,
+        "cyclomatic_complexity": 4,
+        "function_lines": 21,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": true
+    },
+    {
+      "name": "addr",
+      "file": "src/morpho/morpho_watchlist.rs",
+      "line": 127,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "market",
+      "file": "src/morpho/morpho_watchlist.rs",
+      "line": 131,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "test_db",
+      "file": "src/morpho/morpho_watchlist.rs",
+      "line": 135,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "add_market_is_idempotent",
+      "file": "src/morpho/morpho_watchlist.rs",
+      "line": 142,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 5,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 14,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 3,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "remove_market_cleans_empty_borrower",
+      "file": "src/morpho/morpho_watchlist.rs",
+      "line": 158,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 4,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 12,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 3,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 161,
+            "value": "3"
+          },
+          {
+            "line": 162,
+            "value": "4"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "reload_restores_sled_state",
+      "file": "src/morpho/morpho_watchlist.rs",
+      "line": 172,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 5,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 12,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 4,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 174,
+            "value": "5"
+          },
+          {
+            "line": 175,
+            "value": "6"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "start_engine",
+      "file": "src/morpho/mod.rs",
+      "line": 28,
+      "parent_type": null,
+      "classification": "violation",
+      "severity": "medium",
+      "logic": [
+        {
+          "kind": "match",
+          "line": "36"
+        }
+      ],
+      "calls": [
+        {
+          "line": "44",
+          "name": "MorphoLiquidator::new"
+        },
+        {
+          "line": "52",
+          "name": "spawn_named_and_register"
+        }
+      ],
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 2,
+        "max_nesting": 1,
+        "cognitive_complexity": 2,
+        "cyclomatic_complexity": 2,
+        "function_lines": 36,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 6,
+      "is_trait_impl": false,
+      "effort_score": 6.0
+    },
+    {
+      "name": "fetch_contracts",
+      "file": "src/morpho/helpers.rs",
+      "line": 12,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 6,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "has_outstanding_debt",
+      "file": "src/morpho/helpers.rs",
+      "line": 22,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 7,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 3,
+      "is_trait_impl": false
+    },
+    {
+      "name": "start_liquidation_engines",
+      "file": "src/lib.rs",
+      "line": 41,
+      "parent_type": null,
+      "classification": "violation",
+      "severity": "high",
+      "logic": [
+        {
+          "kind": "if",
+          "line": "70"
+        },
+        {
+          "kind": "if",
+          "line": "71"
+        }
+      ],
+      "calls": [
+        {
+          "line": "81",
+          "name": "fetch_contracts"
+        },
+        {
+          "line": "82",
+          "name": "fetch_watchlists"
+        },
+        {
+          "line": "106",
+          "name": ".run_all()"
+        },
+        {
+          "line": "159",
+          "name": "spawn_named_and_register"
+        },
+        {
+          "line": "167",
+          "name": "WatchListPruner::new"
+        },
+        {
+          "line": "183",
+          "name": "ProfitDistributor::new"
+        },
+        {
+          "line": "195",
+          "name": "LiqDataExtractor::new"
+        },
+        {
+          "line": "222",
+          "name": "shutdown_all_tasks"
+        }
+      ],
+      "complexity": {
+        "logic_count": 2,
+        "call_count": 12,
+        "max_nesting": 2,
+        "cognitive_complexity": 8,
+        "cyclomatic_complexity": 8,
+        "function_lines": 186,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 64,
+            "value": "64"
+          },
+          {
+            "line": 65,
+            "value": "64"
+          },
+          {
+            "line": 66,
+            "value": "64"
+          },
+          {
+            "line": 67,
+            "value": "64"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false,
+      "effort_score": 18.0
+    },
+    {
+      "name": "load",
+      "file": "src/aave/aave_config.rs",
+      "line": 31,
+      "parent_type": "AaveConfig",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": true
+    },
+    {
+      "name": "chain_id",
+      "file": "src/aave/aave_config.rs",
+      "line": 46,
+      "parent_type": "AaveConfig",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": true
+    },
+    {
+      "name": "keeper_address",
+      "file": "src/aave/aave_config.rs",
+      "line": 50,
+      "parent_type": "AaveConfig",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": true
+    },
+    {
+      "name": "populate_vdebt_tokens",
+      "file": "src/aave/aave_config.rs",
+      "line": 56,
+      "parent_type": "AaveConfig",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 14,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "new",
+      "file": "src/aave/watchlist_updater.rs",
+      "line": 25,
+      "parent_type": "AaveWatchListUpdater<M>",
+      "classification": "trivial",
+      "parameter_count": 5,
+      "is_trait_impl": false
+    },
+    {
+      "name": "start",
+      "file": "src/aave/watchlist_updater.rs",
+      "line": 42,
+      "parent_type": "AaveWatchListUpdater<M>",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "run",
+      "file": "src/aave/watchlist_updater.rs",
+      "line": 46,
+      "parent_type": "AaveWatchListUpdater<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 51,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "handle_event",
+      "file": "src/aave/watchlist_updater.rs",
+      "line": 98,
+      "parent_type": "AaveWatchListUpdater<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 4,
+        "call_count": 3,
+        "max_nesting": 2,
+        "cognitive_complexity": 7,
+        "cyclomatic_complexity": 7,
+        "function_lines": 34,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "prune_watchlist",
+      "file": "src/aave/watchlist_updater.rs",
+      "line": 133,
+      "parent_type": "AaveWatchListUpdater<M>",
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 2,
+        "cognitive_complexity": 3,
+        "cyclomatic_complexity": 3,
+        "function_lines": 22,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 139,
+            "value": "4"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "remove_if_no_debt",
+      "file": "src/aave/watchlist_updater.rs",
+      "line": 156,
+      "parent_type": "AaveWatchListUpdater<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 11,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "new",
+      "file": "src/aave/aave_liquidator.rs",
+      "line": 36,
+      "parent_type": "AaveLiquidator<M>",
+      "classification": "trivial",
+      "parameter_count": 7,
+      "is_trait_impl": false
+    },
+    {
+      "name": "generate_liquidations",
+      "file": "src/aave/aave_liquidator.rs",
+      "line": 56,
+      "parent_type": "AaveLiquidator<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 2,
+        "cyclomatic_complexity": 2,
+        "function_lines": 31,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 71,
+            "value": "10"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "analyze_portfolio",
+      "file": "src/aave/aave_liquidator.rs",
+      "line": 88,
+      "parent_type": "AaveLiquidator<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 14,
+        "call_count": 6,
+        "max_nesting": 3,
+        "cognitive_complexity": 23,
+        "cyclomatic_complexity": 11,
+        "function_lines": 158,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 102,
+            "value": "18"
+          },
+          {
+            "line": 187,
+            "value": "30"
+          }
+        ]
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "run",
+      "file": "src/aave/aave_liquidator.rs",
+      "line": 257,
+      "parent_type": "AaveLiquidator<M>",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 4,
+        "call_count": 4,
+        "max_nesting": 3,
+        "cognitive_complexity": 7,
+        "cyclomatic_complexity": 5,
+        "function_lines": 58,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": true
+    },
+    {
+      "name": "new",
+      "file": "src/aave/aave_watchlist.rs",
+      "line": 18,
+      "parent_type": "AaveWatchList",
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "snapshot",
+      "file": "src/aave/aave_watchlist.rs",
+      "line": 37,
+      "parent_type": "AaveWatchList",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 8,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "persist",
+      "file": "src/aave/aave_watchlist.rs",
+      "line": 46,
+      "parent_type": "AaveWatchList",
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 2,
+        "cyclomatic_complexity": 3,
+        "function_lines": 22,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 58,
+            "value": "32"
+          }
+        ]
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "contains",
+      "file": "src/aave/aave_watchlist.rs",
+      "line": 69,
+      "parent_type": "AaveWatchList",
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 6,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "add",
+      "file": "src/aave/aave_watchlist.rs",
+      "line": 79,
+      "parent_type": "AaveWatchList",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 13,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": true
+    },
+    {
+      "name": "remove",
+      "file": "src/aave/aave_watchlist.rs",
+      "line": 93,
+      "parent_type": "AaveWatchList",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 3,
+        "call_count": 1,
+        "max_nesting": 2,
+        "cognitive_complexity": 5,
+        "cyclomatic_complexity": 4,
+        "function_lines": 20,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": true
+    },
+    {
+      "name": "addr",
+      "file": "src/aave/aave_watchlist.rs",
+      "line": 119,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "test_db",
+      "file": "src/aave/aave_watchlist.rs",
+      "line": 123,
+      "parent_type": null,
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "add_is_idempotent",
+      "file": "src/aave/aave_watchlist.rs",
+      "line": 130,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 5,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 14,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 3,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "remove_last_reserve_deletes_borrower",
+      "file": "src/aave/aave_watchlist.rs",
+      "line": 146,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 4,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 12,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 3,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 149,
+            "value": "3"
+          },
+          {
+            "line": 150,
+            "value": "4"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "reload_restores_sled_state",
+      "file": "src/aave/aave_watchlist.rs",
+      "line": 160,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 5,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 12,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 4,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 162,
+            "value": "5"
+          },
+          {
+            "line": 163,
+            "value": "6"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "start_engine",
+      "file": "src/aave/mod.rs",
+      "line": 26,
+      "parent_type": null,
+      "classification": "violation",
+      "severity": "medium",
+      "logic": [
+        {
+          "kind": "match",
+          "line": "40"
+        }
+      ],
+      "calls": [
+        {
+          "line": "40",
+          "name": ".populate_vdebt_tokens()"
+        },
+        {
+          "line": "52",
+          "name": "AaveLiquidator::new"
+        },
+        {
+          "line": "62",
+          "name": "spawn_named_and_register"
+        }
+      ],
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 3,
+        "max_nesting": 1,
+        "cognitive_complexity": 2,
+        "cyclomatic_complexity": 3,
+        "function_lines": 42,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 5,
+      "is_trait_impl": false,
+      "effort_score": 7.5
+    },
+    {
+      "name": "close_factor_bps",
+      "file": "src/aave/helpers.rs",
+      "line": 21,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 5,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 9,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "apply_close_factor",
+      "file": "src/aave/helpers.rs",
+      "line": 31,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 2,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 3,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "estimate_seizable_collateral_amount",
+      "file": "src/aave/helpers.rs",
+      "line": 35,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 17,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 6,
+      "is_trait_impl": false
+    },
+    {
+      "name": "liquidation_bonus_bps",
+      "file": "src/aave/helpers.rs",
+      "line": 66,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 2,
+        "call_count": 0,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 11,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 71,
+            "value": "32"
+          },
+          {
+            "line": 71,
+            "value": "65535"
+          }
+        ]
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "compute_debt_to_cover",
+      "file": "src/aave/helpers.rs",
+      "line": 87,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 12,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 4,
+      "is_trait_impl": false
+    },
+    {
+      "name": "estimate_seizable_collateral",
+      "file": "src/aave/helpers.rs",
+      "line": 111,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 25,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 6,
+      "is_trait_impl": false
+    },
+    {
+      "name": "select_collateral_candidates",
+      "file": "src/aave/helpers.rs",
+      "line": 150,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 4,
+        "call_count": 4,
+        "max_nesting": 2,
+        "cognitive_complexity": 4,
+        "cyclomatic_complexity": 4,
+        "function_lines": 53,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 7,
+      "is_trait_impl": false
+    },
+    {
+      "name": "resolve_atoken",
+      "file": "src/aave/helpers.rs",
+      "line": 218,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 1,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 11,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 2,
+      "is_trait_impl": false
+    },
+    {
+      "name": "has_outstanding_debt",
+      "file": "src/aave/helpers.rs",
+      "line": 239,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 12,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 4,
+      "is_trait_impl": false
+    },
+    {
+      "name": "close_factor_is_full_below_liquidation_threshold",
+      "file": "src/aave/helpers.rs",
+      "line": 262,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 2,
+        "call_count": 0,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 8,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 263,
+            "value": "94"
+          },
+          {
+            "line": 263,
+            "value": "100"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "close_factor_is_half_at_or_above_threshold",
+      "file": "src/aave/helpers.rs",
+      "line": 272,
+      "parent_type": null,
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 2,
+        "call_count": 0,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 8,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 273,
+            "value": "95"
+          },
+          {
+            "line": 273,
+            "value": "100"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "seizable_collateral_handles_decimals_and_bonus",
+      "file": "src/aave/helpers.rs",
+      "line": 282,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 1,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 18,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 1,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 284,
+            "value": "100000000"
+          },
+          {
+            "line": 285,
+            "value": "100000000"
+          },
+          {
+            "line": 286,
+            "value": "200000000000"
+          },
+          {
+            "line": 292,
+            "value": "18"
+          },
+          {
+            "line": 293,
+            "value": "6"
+          },
+          {
+            "line": 294,
+            "value": "10500"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "new",
+      "file": "src/liquidation_executor.rs",
+      "line": 16,
+      "parent_type": "LiqExecutor",
+      "classification": "trivial",
+      "parameter_count": 3,
+      "is_trait_impl": false
+    },
+    {
+      "name": "start",
+      "file": "src/liquidation_executor.rs",
+      "line": 35,
+      "parent_type": "LiqExecutor",
+      "classification": "operation",
+      "complexity": {
+        "logic_count": 1,
+        "call_count": 0,
+        "max_nesting": 1,
+        "cognitive_complexity": 1,
+        "cyclomatic_complexity": 2,
+        "function_lines": 82,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 0,
+        "panic_count": 0,
+        "todo_count": 0
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "new",
+      "file": "src/liquidation_executor.rs",
+      "line": 132,
+      "parent_type": "FakeLiquidator",
+      "classification": "trivial",
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "wait_for_calls",
+      "file": "src/liquidation_executor.rs",
+      "line": 139,
+      "parent_type": "FakeLiquidator",
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": false
+    },
+    {
+      "name": "run",
+      "file": "src/liquidation_executor.rs",
+      "line": 155,
+      "parent_type": "FakeLiquidator",
+      "classification": "trivial",
+      "parameter_count": 1,
+      "is_trait_impl": true
+    },
+    {
+      "name": "runs_only_on_configured_interval",
+      "file": "src/liquidation_executor.rs",
+      "line": 163,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 4,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 19,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 5,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 165,
+            "value": "16"
+          },
+          {
+            "line": 170,
+            "value": "9"
+          },
+          {
+            "line": 171,
+            "value": "50"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "ignores_duplicate_and_old_blocks",
+      "file": "src/liquidation_executor.rs",
+      "line": 184,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 5,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 22,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 8,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 186,
+            "value": "16"
+          },
+          {
+            "line": 191,
+            "value": "10"
+          },
+          {
+            "line": 194,
+            "value": "10"
+          },
+          {
+            "line": 195,
+            "value": "9"
+          },
+          {
+            "line": 196,
+            "value": "19"
+          },
+          {
+            "line": 197,
+            "value": "50"
+          },
+          {
+            "line": 200,
+            "value": "20"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    },
+    {
+      "name": "stops_on_shutdown",
+      "file": "src/liquidation_executor.rs",
+      "line": 208,
+      "parent_type": null,
+      "classification": "integration",
+      "complexity": {
+        "logic_count": 0,
+        "call_count": 3,
+        "max_nesting": 0,
+        "cognitive_complexity": 0,
+        "cyclomatic_complexity": 1,
+        "function_lines": 15,
+        "unsafe_blocks": 0,
+        "unwrap_count": 0,
+        "expect_count": 4,
+        "panic_count": 0,
+        "todo_count": 0,
+        "magic_numbers": [
+          {
+            "line": 210,
+            "value": "16"
+          }
+        ]
+      },
+      "parameter_count": 0,
+      "is_trait_impl": false
+    }
+  ],
+  "coupling": {
+    "modules": [
+      {
+        "name": "aave",
+        "afferent": 2,
+        "efferent": 2,
+        "instability": 0.5
+      },
+      {
+        "name": "block_watcher",
+        "afferent": 0,
+        "efferent": 0,
+        "instability": 0.0
+      },
+      {
+        "name": "bootstrap_engine",
+        "afferent": 1,
+        "efferent": 5,
+        "instability": 0.8333333333333334
+      },
+      {
+        "name": "common",
+        "afferent": 9,
+        "efferent": 5,
+        "instability": 0.35714285714285715
+      },
+      {
+        "name": "compound",
+        "afferent": 2,
+        "efferent": 2,
+        "instability": 0.5
+      },
+      {
+        "name": "constants",
+        "afferent": 7,
+        "efferent": 0,
+        "instability": 0.0
+      },
+      {
+        "name": "db",
+        "afferent": 0,
+        "efferent": 0,
+        "instability": 0.0
+      },
+      {
+        "name": "lib",
+        "afferent": 0,
+        "efferent": 4,
+        "instability": 1.0
+      },
+      {
+        "name": "liq_data_extractor",
+        "afferent": 1,
+        "efferent": 1,
+        "instability": 0.5
+      },
+      {
+        "name": "liquidation_executor",
+        "afferent": 0,
+        "efferent": 2,
+        "instability": 1.0
+      },
+      {
+        "name": "main",
+        "afferent": 0,
+        "efferent": 0,
+        "instability": 0.0
+      },
+      {
+        "name": "morpho",
+        "afferent": 2,
+        "efferent": 2,
+        "instability": 0.5
+      },
+      {
+        "name": "profit_distributor",
+        "afferent": 1,
+        "efferent": 2,
+        "instability": 0.6666666666666666
+      },
+      {
+        "name": "watchlist_pruner",
+        "afferent": 1,
+        "efferent": 1,
+        "instability": 0.5
+      }
+    ],
+    "cycles": [
+      [
+        "aave",
+        "bootstrap_engine",
+        "common",
+        "compound",
+        "morpho"
+      ]
+    ],
+    "sdp_violations": [
+      {
+        "from_module": "common",
+        "to_module": "aave",
+        "from_instability": 0.35714285714285715,
+        "to_instability": 0.5
+      },
+      {
+        "from_module": "common",
+        "to_module": "bootstrap_engine",
+        "from_instability": 0.35714285714285715,
+        "to_instability": 0.8333333333333334
+      },
+      {
+        "from_module": "common",
+        "to_module": "compound",
+        "from_instability": 0.35714285714285715,
+        "to_instability": 0.5
+      },
+      {
+        "from_module": "common",
+        "to_module": "morpho",
+        "from_instability": 0.35714285714285715,
+        "to_instability": 0.5
+      }
+    ]
+  },
+  "duplicates": [
+    {
+      "kind": "exact",
+      "entries": [
+        {
+          "name": "MorphoWatchList::persist",
+          "qualified_name": "MorphoWatchList::persist",
+          "file": "src/morpho/morpho_watchlist.rs",
+          "line": 56
+        },
+        {
+          "name": "AaveWatchList::persist",
+          "qualified_name": "AaveWatchList::persist",
+          "file": "src/aave/aave_watchlist.rs",
+          "line": 46
+        }
+      ]
+    },
+    {
+      "kind": "exact",
+      "entries": [
+        {
+          "name": "MorphoWatchList::new",
+          "qualified_name": "MorphoWatchList::new",
+          "file": "src/morpho/morpho_watchlist.rs",
+          "line": 22
+        },
+        {
+          "name": "AaveWatchList::new",
+          "qualified_name": "AaveWatchList::new",
+          "file": "src/aave/aave_watchlist.rs",
+          "line": 18
+        }
+      ]
+    },
+    {
+      "kind": "near_duplicate",
+      "similarity": 0.971830985915493,
+      "entries": [
+        {
+          "name": "MorphoBootstrap::fetch_batch",
+          "qualified_name": "MorphoBootstrap::fetch_batch",
+          "file": "src/bootstrap_engine/morpho_bootstrap.rs",
+          "line": 43
+        },
+        {
+          "name": "AaveBootstrap::fetch_batch",
+          "qualified_name": "AaveBootstrap::fetch_batch",
+          "file": "src/bootstrap_engine/aave_bootstrap.rs",
+          "line": 41
+        }
+      ]
+    },
+    {
+      "kind": "near_duplicate",
+      "similarity": 0.925,
+      "entries": [
+        {
+          "name": "get_token_decimals",
+          "qualified_name": "get_token_decimals",
+          "file": "src/common/mod.rs",
+          "line": 154
+        },
+        {
+          "name": "get_token_symbol",
+          "qualified_name": "get_token_symbol",
+          "file": "src/common/mod.rs",
+          "line": 169
+        }
+      ]
+    }
+  ],
+  "dead_code": [
+    {
+      "function_name": "LiqDataExtractor::handle_event",
+      "qualified_name": "LiqDataExtractor::handle_event",
+      "file": "src/liq_data_extractor.rs",
+      "line": 75,
+      "kind": "uncalled",
+      "suggestion": "never called; consider removing"
+    },
+    {
+      "function_name": "active_task_count",
+      "qualified_name": "active_task_count",
+      "file": "src/common/task_manager.rs",
+      "line": 31,
+      "kind": "uncalled",
+      "suggestion": "never called; consider removing"
+    },
+    {
+      "function_name": "spawn_and_register",
+      "qualified_name": "spawn_and_register",
+      "file": "src/common/task_manager.rs",
+      "line": 36,
+      "kind": "uncalled",
+      "suggestion": "never called; consider removing"
+    },
+    {
+      "function_name": "CompoundWatchListUpdater::handle_event",
+      "qualified_name": "CompoundWatchListUpdater::handle_event",
+      "file": "src/compound/compound_watchlist_updater.rs",
+      "line": 96,
+      "kind": "uncalled",
+      "suggestion": "never called; consider removing"
+    },
+    {
+      "function_name": "WatchListUpdater::add_borrow",
+      "qualified_name": "WatchListUpdater::add_borrow",
+      "file": "src/morpho/watchlist_updater.rs",
+      "line": 120,
+      "kind": "uncalled",
+      "suggestion": "never called; consider removing"
+    },
+    {
+      "function_name": "WatchListUpdater::remove_if_cleared",
+      "qualified_name": "WatchListUpdater::remove_if_cleared",
+      "file": "src/morpho/watchlist_updater.rs",
+      "line": 131,
+      "kind": "uncalled",
+      "suggestion": "never called; consider removing"
+    },
+    {
+      "function_name": "WatchListUpdater::prune_watchlist",
+      "qualified_name": "WatchListUpdater::prune_watchlist",
+      "file": "src/morpho/watchlist_updater.rs",
+      "line": 147,
+      "kind": "uncalled",
+      "suggestion": "never called; consider removing"
+    },
+    {
+      "function_name": "max",
+      "qualified_name": "max",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 16,
+      "kind": "uncalled",
+      "suggestion": "never called; consider removing"
+    },
+    {
+      "function_name": "AaveWatchListUpdater::handle_event",
+      "qualified_name": "AaveWatchListUpdater::handle_event",
+      "file": "src/aave/watchlist_updater.rs",
+      "line": 98,
+      "kind": "uncalled",
+      "suggestion": "never called; consider removing"
+    },
+    {
+      "function_name": "AaveWatchListUpdater::prune_watchlist",
+      "qualified_name": "AaveWatchListUpdater::prune_watchlist",
+      "file": "src/aave/watchlist_updater.rs",
+      "line": 133,
+      "kind": "uncalled",
+      "suggestion": "never called; consider removing"
+    },
+    {
+      "function_name": "to_shares_down",
+      "qualified_name": "to_shares_down",
+      "file": "src/morpho/morpho_math.rs",
+      "line": 72,
+      "kind": "test_only",
+      "suggestion": "only called from test code; move to tests/ or annotate with // qual:api (public API) or // qual:test_helper (test-only helper)"
+    }
+  ],
+  "fragments": [
+    {
+      "statement_count": 4,
+      "entries": [
+        {
+          "function_name": "MorphoWatchList::new",
+          "qualified_name": "MorphoWatchList::new",
+          "file": "src/morpho/morpho_watchlist.rs",
+          "start_line": 23,
+          "end_line": 37
+        },
+        {
+          "function_name": "AaveWatchList::new",
+          "qualified_name": "AaveWatchList::new",
+          "file": "src/aave/aave_watchlist.rs",
+          "start_line": 19,
+          "end_line": 33
+        }
+      ]
+    },
+    {
+      "statement_count": 4,
+      "entries": [
+        {
+          "function_name": "MorphoWatchList::persist",
+          "qualified_name": "MorphoWatchList::persist",
+          "file": "src/morpho/morpho_watchlist.rs",
+          "start_line": 57,
+          "end_line": 75
+        },
+        {
+          "function_name": "AaveWatchList::persist",
+          "qualified_name": "AaveWatchList::persist",
+          "file": "src/aave/aave_watchlist.rs",
+          "start_line": 47,
+          "end_line": 66
+        }
+      ]
+    }
+  ],
+  "boilerplate": [
+    {
+      "pattern_id": "BP-007",
+      "file": "src/common/liq_data.rs",
+      "line": 10,
+      "struct_name": "LiquidationParams",
+      "description": "3 trivial From impls for LiquidationParams — error enum boilerplate",
+      "suggestion": "Consider using thiserror to derive From implementations"
+    }
+  ],
+  "wildcard_warnings": [
+    {
+      "file": "src/morpho/morpho_liquidator.rs",
+      "line": 10,
+      "module_path": "super::morpho_math::*"
+    }
+  ],
+  "srp": {
+    "struct_warnings": [
+      {
+        "struct_name": "ProfitDistributor",
+        "file": "src/profit_distributor.rs",
+        "line": 27,
+        "lcom4": 3,
+        "field_count": 4,
+        "method_count": 7,
+        "fan_out": 38,
+        "composite_score": 0.7358333333333333,
+        "clusters": [
+          {
+            "methods": [
+              "breet_address_for"
+            ],
+            "fields": []
+          },
+          {
+            "methods": [
+              "discover_active_assets",
+              "distribute_all_assets",
+              "ensure_gas_balance",
+              "execute",
+              "new"
+            ],
+            "fields": [
+              "client",
+              "contract",
+              "pool",
+              "running"
+            ]
+          },
+          {
+            "methods": [
+              "start"
+            ],
+            "fields": []
+          }
+        ]
+      },
+      {
+        "struct_name": "AnvilSandbox",
+        "file": "src/common/simulation_sandbox.rs",
+        "line": 19,
+        "lcom4": 2,
+        "field_count": 2,
+        "method_count": 9,
+        "fan_out": 39,
+        "composite_score": 0.7091666666666667,
+        "clusters": [
+          {
+            "methods": [
+              "decode_revert_from_data"
+            ],
+            "fields": []
+          },
+          {
+            "methods": [
+              "impersonate",
+              "new",
+              "revert",
+              "set_balance",
+              "set_code",
+              "simulate_tx",
+              "snapshot",
+              "wait_for_receipt"
+            ],
+            "fields": [
+              "_anvil",
+              "provider"
+            ]
+          }
+        ]
+      },
+      {
+        "struct_name": "MorphoBootstrap",
+        "file": "src/bootstrap_engine/morpho_bootstrap.rs",
+        "line": 19,
+        "lcom4": 2,
+        "field_count": 5,
+        "method_count": 2,
+        "fan_out": 10,
+        "composite_score": 0.7191666666666667,
+        "clusters": [
+          {
+            "methods": [
+              "fetch_batch"
+            ],
+            "fields": []
+          },
+          {
+            "methods": [
+              "new"
+            ],
+            "fields": [
+              "deploy_block",
+              "morpho",
+              "provider",
+              "state",
+              "watch_list"
+            ]
+          }
+        ]
+      },
+      {
+        "struct_name": "AaveBootstrap",
+        "file": "src/bootstrap_engine/aave_bootstrap.rs",
+        "line": 17,
+        "lcom4": 2,
+        "field_count": 5,
+        "method_count": 2,
+        "fan_out": 10,
+        "composite_score": 0.7191666666666667,
+        "clusters": [
+          {
+            "methods": [
+              "fetch_batch"
+            ],
+            "fields": []
+          },
+          {
+            "methods": [
+              "new"
+            ],
+            "fields": [
+              "aave",
+              "deploy_block",
+              "provider",
+              "state",
+              "watch_list"
+            ]
+          }
+        ]
+      }
+    ],
+    "module_warnings": [
+      {
+        "module": "src/morpho/morpho_liquidator.rs",
+        "file": "src/morpho/morpho_liquidator.rs",
+        "production_lines": 303,
+        "length_score": 0.006,
+        "independent_clusters": 0
+      }
+    ],
+    "param_warnings": [
+      {
+        "function_name": "WatchListPruner::new",
+        "file": "src/watchlist_pruner.rs",
+        "line": 15,
+        "parameter_count": 6
+      },
+      {
+        "function_name": "discounted_base_amount",
+        "file": "src/compound/helpers.rs",
+        "line": 9,
+        "parameter_count": 7
+      },
+      {
+        "function_name": "seized_assets_from_repaid_shares",
+        "file": "src/morpho/morpho_math.rs",
+        "line": 91,
+        "parameter_count": 6
+      },
+      {
+        "function_name": "repaid_assets_from_seized_collateral",
+        "file": "src/morpho/morpho_math.rs",
+        "line": 120,
+        "parameter_count": 6
+      },
+      {
+        "function_name": "start_engine",
+        "file": "src/morpho/mod.rs",
+        "line": 28,
+        "parameter_count": 6
+      },
+      {
+        "function_name": "AaveLiquidator<M>::new",
+        "file": "src/aave/aave_liquidator.rs",
+        "line": 36,
+        "parameter_count": 7
+      },
+      {
+        "function_name": "estimate_seizable_collateral_amount",
+        "file": "src/aave/helpers.rs",
+        "line": 35,
+        "parameter_count": 6
+      },
+      {
+        "function_name": "estimate_seizable_collateral",
+        "file": "src/aave/helpers.rs",
+        "line": 111,
+        "parameter_count": 6
+      },
+      {
+        "function_name": "select_collateral_candidates",
+        "file": "src/aave/helpers.rs",
+        "line": 150,
+        "parameter_count": 7
+      }
+    ]
+  },
+  "tq_warnings": [
+    {
+      "file": "src/liq_data_extractor.rs",
+      "line": 93,
+      "function_name": "handle_liquidation_event",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/liq_data_extractor.rs",
+      "line": 141,
+      "function_name": "handle_distribution_event",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/liq_data_extractor.rs",
+      "line": 173,
+      "function_name": "compute_amount",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/common/task_manager.rs",
+      "line": 5,
+      "function_name": "register_task",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/common/task_manager.rs",
+      "line": 11,
+      "function_name": "register_task_named",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/common/task_manager.rs",
+      "line": 17,
+      "function_name": "shutdown_all_tasks",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/common/task_manager.rs",
+      "line": 44,
+      "function_name": "spawn_named_and_register",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/common/mod.rs",
+      "line": 211,
+      "function_name": "fetch_watchlists",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/bootstrap_engine/mod.rs",
+      "line": 27,
+      "function_name": "run_all",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/constants.rs",
+      "line": 163,
+      "function_name": "max_liquidation_incentive_factor",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/constants.rs",
+      "line": 173,
+      "function_name": "liquidation_cursor",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/constants.rs",
+      "line": 181,
+      "function_name": "load_private_key",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/constants.rs",
+      "line": 192,
+      "function_name": "load_rpc_url",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/compound/mod.rs",
+      "line": 21,
+      "function_name": "start_engine",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/morpho/mod.rs",
+      "line": 28,
+      "function_name": "start_engine",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/lib.rs",
+      "line": 41,
+      "function_name": "start_liquidation_engines",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/aave/aave_config.rs",
+      "line": 56,
+      "function_name": "populate_vdebt_tokens",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/aave/watchlist_updater.rs",
+      "line": 156,
+      "function_name": "remove_if_no_debt",
+      "kind": "untested",
+      "suppressed": false
+    },
+    {
+      "file": "src/aave/mod.rs",
+      "line": 26,
+      "function_name": "start_engine",
+      "kind": "untested",
+      "suppressed": false
+    }
+  ],
+  "structural_warnings": [
+    {
+      "file": "src/profit_distributor.rs",
+      "line": 227,
+      "name": "breet_address_for",
+      "code": "SLM",
+      "dimension": "srp",
+      "detail": "self never referenced"
+    },
+    {
+      "file": "src/common/simulation_sandbox.rs",
+      "line": 170,
+      "name": "decode_revert_from_data",
+      "code": "SLM",
+      "dimension": "srp",
+      "detail": "self never referenced"
+    },
+    {
+      "file": "src/bootstrap_engine/morpho_bootstrap.rs",
+      "line": 43,
+      "name": "fetch_batch",
+      "code": "SLM",
+      "dimension": "srp",
+      "detail": "self never referenced"
+    },
+    {
+      "file": "src/bootstrap_engine/aave_bootstrap.rs",
+      "line": 41,
+      "name": "fetch_batch",
+      "code": "SLM",
+      "dimension": "srp",
+      "detail": "self never referenced"
+    },
+    {
+      "file": "src/watchlist_pruner.rs",
+      "line": 33,
+      "name": "start",
+      "code": "SLM",
+      "dimension": "srp",
+      "detail": "self never referenced"
+    },
+    {
+      "file": "src/liquidation_executor.rs",
+      "line": 35,
+      "name": "start",
+      "code": "SLM",
+      "dimension": "srp",
+      "detail": "self never referenced"
+    }
+  ]
+}
