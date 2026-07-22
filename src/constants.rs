@@ -25,6 +25,9 @@ pub const AAVE_DEPLOY_BLOCK: u64 = 75_000_000;
 //pub const COMPOUND_DEPLOY_BLOCK: u64 = 42_000_000;
 pub const MORPHO_DEPLOY_BLOCK: u64 = 68_000_000;
 
+pub const BPS: u128 = 10_000;
+pub const SLIPPAGE_BPS: u32 = 50; // 0.5%
+
 pub static FLASH_LIQUIDATOR: Lazy<Address> =
     Lazy::new(|| Address::from_str("0x089C0634bb99593174D8273f997c9dbC5D9A4991").expect("Failed"));
 
@@ -139,24 +142,6 @@ pub static AAVE_RESERVES: Lazy<HashSet<Address>> = Lazy::new(|| {
 });
 
 pub static ATOKENS_ADDR: Lazy<DashMap<Address, Address>> = Lazy::new(|| DashMap::new());
-
-//compound
-
-pub static COMET_USDT: Lazy<Address> =
-    Lazy::new(|| Address::from_str("0xaeB318360f27748Acb200CE616E389A6C9409a07").expect("Failed"));
-
-pub static COMPOUND_COLLATERAL_ASSETS: Lazy<HashSet<Address>> = Lazy::new(|| {
-    [
-        "0xfa68FB4628DFF1028CFEc22b4162FCcd0d45efb6",
-        "0x3A58a54C066FdC0f2D55FC9C89F0415C92eBf3C4",
-        "0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6",
-        "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
-        "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
-    ]
-    .into_iter()
-    .map(|s| s.parse::<Address>().expect("invalid reserve address"))
-    .collect()
-});
 
 //helpers
 

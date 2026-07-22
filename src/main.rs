@@ -1,3 +1,5 @@
+use std::process;
+
 use dotenv::dotenv;
 use tracing_subscriber::{fmt, EnvFilter};
 
@@ -14,8 +16,9 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("🚀 Starting liquidation mining");
 
-    if let Err(e) = liq_ranger::start_liquidation_engines().await {
+    if let Err(e) = liq_ranger::start_liquidation_engine().await {
         tracing::error!("❌ Engine crashed: {:?}", e);
+        process::exit(1);
     }
 
     Ok(())

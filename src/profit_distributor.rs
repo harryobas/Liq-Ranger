@@ -9,10 +9,11 @@ use std::{
 
 use anyhow::{Context, Result};
 use ethers::{providers::Middleware, signers::Signer, types::Address, utils::format_ether};
+use tokio::sync::watch;
 use tokio_cron_scheduler::{Job, JobScheduler};
 
 use crate::{
-    common::{self, abi_bindings::IFlashLiquidator},
+    common::{self, abi_bindings::IFlashLiquidator, task_manager},
     constants,
 };
 
@@ -47,10 +48,10 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
         }
     }
 
-    /// Start weekly cron job
-    pub async fn start(self: Arc<Self>) -> Result<()> {
+    /// Start weekly cron job runner with shutdown watcher
+    pub async fn start(self: Arc<Self>, mut shutdown: watch::Receiver<bool>) -> Result<()> {
         tracing::info!("📅 ProfitDistributor started for weekly execution...");
-        let sched = JobScheduler::new().await?;
+        let mut sched = JobScheduler::new().await?;
 
         // Every Sunday at 02:00 UTC
         let job = Job::new_async("0 0 2 * * Sun", move |_uuid, _l| {
@@ -67,7 +68,7 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
                 }
 
                 if let Err(e) = distributor.execute().await {
-                    tracing::error!("ProfitDistributor execution failed: {:?}", e);
+                    tracing::error!("❌ ProfitDistributor execution failed: {:?}", e);
                 }
 
                 distributor.running.store(false, Ordering::SeqCst);
@@ -78,6 +79,19 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
         sched.start().await?;
 
         tracing::info!("📅 ProfitDistributor scheduled (Sunday 02:00 UTC)");
+
+        // Wait until shutdown signal is received
+        loop {
+            tokio::select! {
+                _ = shutdown.changed() => {
+                    if *shutdown.borrow() {
+                        tracing::info!("🛑 Stopping ProfitDistributor cron scheduler...");
+                        let _ = sched.shutdown().await;
+                        break;
+                    }
+                }
+            }
+        }
 
         Ok(())
     }
@@ -133,7 +147,6 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
         }
 
         let call = self.contract.refuel_gas(refuel_amt);
-
         let pending = call.send().await.context("Refuel tx submission failed")?;
 
         let receipt = pending
@@ -166,9 +179,9 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
             }
 
             if asset == *constants::WPOL {
-                // Skip WPOL since it's used for gas
+                // Skip WPOL since it's used for gas top-ups
                 tracing::info!(
-                    "💰 Skipping WPOL profit of {} (used for gas)",
+                    "💰 Skipping WPOL profit of {} (reserved for gas refuel)",
                     format_ether(profit_amount)
                 );
                 continue;
@@ -177,7 +190,7 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
             let breet_addr = self.breet_address_for(asset);
             let asset_sym = common::get_token_symbol(asset, self.client.clone()).await?;
 
-            tracing::info!("💰 Distributing {} of asset {:?}", profit_amount, asset_sym);
+            tracing::info!("💰 Distributing {} of asset {}", profit_amount, asset_sym);
 
             let call = self.contract.distribute_profits(asset, breet_addr);
             let pending = call
@@ -206,14 +219,14 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
         assets.extend(constants::PROFIT_DIST_ASSETS.iter().cloned());
 
         let sql = "
-        SELECT profit_asset FROM liquidations 
+        SELECT profit_asset AS asset_addr FROM liquidations 
         UNION 
-        SELECT collateral_asset FROM liquidations";
+        SELECT collateral_asset AS asset_addr FROM liquidations";
 
         let rows = sqlx::query(sql).fetch_all(&self.pool).await?;
 
         for row in rows {
-            if let Some(addr_str) = row.try_get::<String, _>("profit_asset").ok() {
+            if let Ok(addr_str) = row.try_get::<String, _>("asset_addr") {
                 if let Ok(addr) = Address::from_str(&addr_str) {
                     assets.insert(addr);
                 }
@@ -231,4 +244,23 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
             Address::zero()
         }
     }
+}
+
+/// Task starter wrapper compatible with `start_liquidation_engines`
+pub async fn start_profit_distributor<M: Middleware + 'static>(
+    client: Arc<M>,
+    contract: Arc<IFlashLiquidator<M>>,
+    pool: sqlx::Pool<sqlx::Sqlite>,
+    shutdown: watch::Receiver<bool>,
+) -> Result<()> {
+    let distributor = Arc::new(ProfitDistributor::new(client, contract, pool));
+
+    task_manager::spawn_named_and_register("profit_distributor", async move {
+        if let Err(e) = distributor.start(shutdown).await {
+            tracing::error!("❌ ProfitDistributor task error: {:?}", e);
+        }
+    })
+    .await;
+
+    Ok(())
 }

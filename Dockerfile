@@ -33,6 +33,8 @@ libssl3 \
 tini \
 && rm -rf /var/lib/apt/lists/*
 
+COPY --from=ghcr.io/foundry-rs/foundry:nightly /usr/local/bin/anvil /usr/local/bin/anvil
+
 # Create a non‑root user with a home directory
 RUN useradd -m -s /bin/bash scavenger
 

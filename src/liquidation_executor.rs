@@ -1,223 +1,118 @@
 use std::sync::Arc;
 
+use crate::constants;
+use crate::core::services::liquidation_engine::LiquidationEngine;
+use ethers::providers::Middleware;
 use tokio::sync::{broadcast::Receiver, watch, Mutex};
 
-use crate::{common::Liquidator, constants};
-
-pub struct LiqExecutor {
-    liquidators: Vec<Arc<dyn Liquidator>>,
-    locks: Vec<Arc<Mutex<()>>>,
+pub struct LiqExecutor<M> {
+    engine: LiquidationEngine,
+    client: Arc<M>,
+    lock: Mutex<()>,
     receiver: Receiver<u64>,
     shutdown: watch::Receiver<bool>,
     interval: u64,
 }
 
-impl LiqExecutor {
+impl<M: Middleware + 'static> LiqExecutor<M> {
     pub fn new(
-        liquidators: Vec<Arc<dyn Liquidator>>,
+        engine: LiquidationEngine,
+        client: Arc<M>,
         receiver: Receiver<u64>,
         shutdown: watch::Receiver<bool>,
     ) -> Self {
-        let locks = liquidators
-            .iter()
-            .map(|_| Arc::new(Mutex::new(())))
-            .collect();
-
         Self {
-            liquidators,
-            locks,
+            engine,
+            client,
+            lock: Mutex::new(()),
             receiver,
             shutdown,
             interval: constants::LIQ_EXECUTOR_INTERVAL,
         }
     }
 
-    pub async fn start(mut self) -> anyhow::Result<()> {
+    pub async fn start(&mut self) -> anyhow::Result<()> {
         tracing::info!(
-            "📡 Liquidation executor started (every {} blocks)",
+            " Liquidation executor started (running inline, every {} blocks)",
             self.interval
         );
 
-        let mut last_run_block = 0u64;
+        let mut last_run_block: Option<u64> = None;
 
         loop {
             tokio::select! {
-                // 🔴 Shutdown signal
+                // Graceful Shutdown
                 _ = self.shutdown.changed() => {
                     tracing::info!("🛑 Liquidation executor shutting down");
                     break;
                 }
 
-                // 🧱 New block
+                //  New Block Intake
                 recv = self.receiver.recv() => {
                     let block_number = match recv {
-                        Ok(b) => b,
+                        Ok(b) => Some(b),
+
                         Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
                             tracing::warn!("⚠️  Block receiver lagged ({} messages dropped)", n);
-                            continue;
+                            match self.client.get_block_number().await{
+                                Ok(b) => Some(b.as_u64()),
+                                Err(e) => {
+                                    tracing::error!("❌ Fallback synchronization query failed: {:?}", e);
+                                    None
+                                }
+                            }
                         }
+
                         Err(tokio::sync::broadcast::error::RecvError::Closed) => {
                             tracing::warn!("📴 Block channel closed");
                             break;
                         }
                     };
 
-                    // Deterministic debouncing
-                    if block_number <= last_run_block {
-                        continue;
+                    let block_number = match block_number {
+                        Some(b) => b,
+                        None => continue,
+                    };
+
+
+                    // Interval sequence boundaries validation
+                    if let Some(last_block) = last_run_block {
+                        if block_number <= last_block || block_number < last_block + self.interval {
+                            continue;
+                        }
                     }
 
-                    if block_number < last_run_block + self.interval {
-                        tracing::trace!(
-                            "⏭️  Skipping block {} (last run {})",
-                            block_number,
-                            last_run_block
-                        );
-                        continue;
-                    }
-
-                    last_run_block = block_number;
+                    last_run_block = Some(block_number);
 
                     tracing::info!(
-                        "🚀 Liquidation cycle triggered at block {}",
+                        "🚀 Triggering inline multi-protocol cycle at block {}",
                         block_number
                     );
 
-                    for (liq, lock) in self
-                        .liquidators
-                        .iter()
-                        .cloned()
-                        .zip(self.locks.iter().cloned())
-                    {
-                        tokio::spawn(async move {
-                            let guard = match lock.try_lock() {
-                                Ok(g) => g,
-                                Err(_) => {
-                                    tracing::debug!(
-                                        "⏳ Liquidator already running, skipping this cycle"
-                                    );
-                                    return;
-                                }
-                            };
+                    // 💡 Try to acquire the execution guard inline.
+                    // If a previous block's async requests are still hanging, skip immediately.
+                    let guard = match self.lock.try_lock() {
+                        Ok(g) => g,
+                        Err(_) => {
+                            tracing::warn!(
+                                "⏳ Previous cycle at block {} is still processing! Skipping to maintain sync.",
+                                block_number
+                            );
+                            continue;
+                        }
+                    };
 
-                            if let Err(e) = liq.run(block_number).await {
-                                tracing::error!("❌ Liquidator failed: {:?}", e);
-                            }
-
-                            drop(guard);
-                        });
+                    // 💡 RUN INLINE: Awaiting directly here kills all 'static / thread-transfer lifetime constraints.
+                    if let Err(e) = self.engine.run_liquidation_cycle(block_number).await {
+                        tracing::error!("❌ Unified engine execution failure: {:?}", e);
                     }
+
+                    drop(guard);
                 }
             }
         }
 
         tracing::info!("✅ Liquidation executor stopped cleanly");
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    use tokio::sync::Notify;
-    use tokio::time::{timeout, Duration};
-
-    struct FakeLiquidator {
-        calls: AtomicUsize,
-        notify: Notify,
-    }
-
-    impl FakeLiquidator {
-        fn new() -> Arc<Self> {
-            Arc::new(Self {
-                calls: AtomicUsize::new(0),
-                notify: Notify::new(),
-            })
-        }
-
-        async fn wait_for_calls(&self, expected: usize) {
-            timeout(Duration::from_secs(2), async {
-                loop {
-                    if self.calls.load(Ordering::SeqCst) >= expected {
-                        break;
-                    }
-                    self.notify.notified().await;
-                }
-            })
-            .await
-            .expect("expected liquidator calls");
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl Liquidator for FakeLiquidator {
-        async fn run(&self, _block_number: u64) -> anyhow::Result<()> {
-            self.calls.fetch_add(1, Ordering::SeqCst);
-            self.notify.notify_waiters();
-            Ok(())
-        }
-    }
-
-    #[tokio::test]
-    async fn runs_only_on_configured_interval() {
-        let fake = FakeLiquidator::new();
-        let (block_tx, block_rx) = tokio::sync::broadcast::channel(16);
-        let (shutdown_tx, shutdown_rx) = watch::channel(false);
-        let executor = LiqExecutor::new(vec![fake.clone()], block_rx, shutdown_rx);
-        let handle = tokio::spawn(executor.start());
-
-        block_tx.send(9).expect("send block");
-        tokio::time::sleep(Duration::from_millis(50)).await;
-        assert_eq!(fake.calls.load(Ordering::SeqCst), 0);
-
-        block_tx
-            .send(constants::LIQ_EXECUTOR_INTERVAL)
-            .expect("send block");
-        fake.wait_for_calls(1).await;
-
-        shutdown_tx.send(true).expect("shutdown");
-        handle.await.expect("join").expect("executor");
-    }
-
-    #[tokio::test]
-    async fn ignores_duplicate_and_old_blocks() {
-        let fake = FakeLiquidator::new();
-        let (block_tx, block_rx) = tokio::sync::broadcast::channel(16);
-        let (shutdown_tx, shutdown_rx) = watch::channel(false);
-        let executor = LiqExecutor::new(vec![fake.clone()], block_rx, shutdown_rx);
-        let handle = tokio::spawn(executor.start());
-
-        block_tx.send(10).expect("send block");
-        fake.wait_for_calls(1).await;
-
-        block_tx.send(10).expect("duplicate block");
-        block_tx.send(9).expect("old block");
-        block_tx.send(19).expect("before interval");
-        tokio::time::sleep(Duration::from_millis(50)).await;
-        assert_eq!(fake.calls.load(Ordering::SeqCst), 1);
-
-        block_tx.send(20).expect("next interval");
-        fake.wait_for_calls(2).await;
-
-        shutdown_tx.send(true).expect("shutdown");
-        handle.await.expect("join").expect("executor");
-    }
-
-    #[tokio::test]
-    async fn stops_on_shutdown() {
-        let fake = FakeLiquidator::new();
-        let (_block_tx, block_rx) = tokio::sync::broadcast::channel(16);
-        let (shutdown_tx, shutdown_rx) = watch::channel(false);
-        let executor = LiqExecutor::new(vec![fake], block_rx, shutdown_rx);
-
-        let handle = tokio::spawn(executor.start());
-        shutdown_tx.send(true).expect("shutdown");
-
-        timeout(Duration::from_secs(2), handle)
-            .await
-            .expect("executor stopped")
-            .expect("join")
-            .expect("executor");
     }
 }

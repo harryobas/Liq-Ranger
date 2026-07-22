@@ -37,32 +37,34 @@ impl<M: Middleware + 'static> LiqDataExtractor<M> {
     pub async fn start(mut self) -> anyhow::Result<()> {
         tracing::info!("📡 LiqDataExtractor started");
 
-        // Listen for liquidation events
         let events = self.flash_liquidator.events();
         let mut event_stream = events.stream_with_meta().await?;
 
         loop {
             tokio::select! {
-                // 🔴 Shutdown
+                // 🔴 Shutdown Signal
                 _ = self.shutdown.changed() => {
                     tracing::info!("🛑 LiqDataExtractor shutting down");
                     break;
                 }
 
-                // 🟢 New liquidation event
+                // 🟢 Incoming Event Stream
                 evt = event_stream.next() => {
                     match evt {
                         Some(Ok((event, meta))) => {
-                            tracing::info!("🔔 New liquidation event: {:?}", event);
-                            let tx_hash = format!("{:?}", meta.transaction_hash);
+                            tracing::info!("🔔 New event indexed: {:?}", event);
+                            let tx_hash = format!("{:#x}", meta.transaction_hash);
                             let block_number = meta.block_number.as_u64() as i64;
-                            self.handle_event(event, tx_hash, block_number).await?;
+
+                            if let Err(e) = self.handle_event(event, tx_hash, block_number).await {
+                                tracing::error!("❌ Failed handling index event: {:?}", e);
+                            }
                         }
                         Some(Err(e)) => {
-                            tracing::error!("❌ Error processing event: {:?}", e);
+                            tracing::error!("❌ Event stream error: {:?}", e);
                         }
                         None => {
-                            tracing::info!("📭 Event stream ended");
+                            tracing::warn!("📭 LiqDataExtractor event stream closed");
                             break;
                         }
                     }
@@ -134,6 +136,7 @@ impl<M: Middleware + 'static> LiqDataExtractor<M> {
         };
 
         record.save(&self.db_pool).await?;
+        tracing::info!("💾 Stored liquidation record for tx {}", tx_hash);
 
         Ok(())
     }
@@ -158,7 +161,7 @@ impl<M: Middleware + 'static> LiqDataExtractor<M> {
         let record = DistributionRecord {
             timestamp,
             tx_hash: tx_hash.to_string(),
-            asset: asset.to_string(),
+            asset: format!("{:#x}", asset),
             asset_symbol,
             owner_share,
             breet_share,
@@ -166,6 +169,7 @@ impl<M: Middleware + 'static> LiqDataExtractor<M> {
         };
 
         record.save(&self.db_pool).await?;
+        tracing::info!("💾 Stored distribution record for tx {}", tx_hash);
 
         Ok(())
     }
@@ -175,6 +179,6 @@ impl<M: Middleware + 'static> LiqDataExtractor<M> {
             .await
             .unwrap_or_else(|_| 18);
         let amount = ethers::utils::format_units(raw_amount, decimals as usize)?;
-        Ok(amount.parse::<f64>().unwrap_or_else(|_| 0.0))
+        Ok(amount.parse::<f64>().unwrap_or(0.0))
     }
 }

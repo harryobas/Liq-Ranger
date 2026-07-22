@@ -33,6 +33,7 @@ tokio-cron-scheduler = "0.15.1"
 sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "sqlite", "macros", "migrate", "chrono"] }
 chrono = { version = "0.4", features = ["serde"] }
 url = "2.5.8"
+backoff = { version = "0.4", features = ["tokio"] }
 
 [dev-dependencies]
 tempfile = "3.23.0"
