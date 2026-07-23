@@ -28,7 +28,7 @@ struct TransactionResponse {
 }
 
 pub struct ParaSwapAdapter {
-    pub http_client: Client,
+    http_client: Client,
     base_url: String,
     flash_liq_address: Address,
     chain_id: u64,

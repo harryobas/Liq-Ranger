@@ -46,11 +46,6 @@ pub trait ProtocolWatchList: Sync + Send {
     fn snapshot(&self) -> Vec<String>;
 }
 
-pub trait SettlementExecutor: Send + Sync {
-    async fn accumulated_profits(&self, asset: Address) -> anyhow::Result<U256>;
-    async fn execute_refuel(&self, amount: U256) -> anyhow::Result<()>;
-    async fn execute_distribution(&self, asset: Address, recipient: Address) -> anyhow::Result<()>;
-}
 pub trait KeeperWalletManager: Send + Sync {
     /// Retrieves current native gas token balance of the execution engine
     async fn current_gas_balance(&self) -> anyhow::Result<U256>;
