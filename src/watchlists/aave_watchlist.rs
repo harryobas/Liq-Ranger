@@ -38,7 +38,6 @@ impl AaveWatchList {
         let db = self.db.clone();
         let maybe_set = self.cache.get(&borrower).map(|v| v.value().clone());
 
-        // FIX 1: Properly await join handle and propagate inner anyhow::Result with ??
         tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
             if let Some(set) = maybe_set {
                 let encoded = bincode::serialize(&set)?;
@@ -75,9 +74,15 @@ impl AaveWatchList {
 #[async_trait]
 impl ProtocolWatchList for AaveWatchList {
     async fn add(&self, identity: &str) -> anyhow::Result<()> {
-        if let Ok(TrackerIdentity::AaveV3 { borrower, reserve }) =
-            TrackerIdentity::from_str(identity)
-        {
+        let parsed = match TrackerIdentity::from_str(identity) {
+            Ok(id) => id,
+            Err(e) => {
+                tracing::warn!(%identity, error = %e, "Failed to parse identity during add");
+                return Ok(());
+            }
+        };
+
+        if let TrackerIdentity::AaveV3 { borrower, reserve } = parsed {
             let was_inserted = {
                 let mut set = self.cache.entry(borrower).or_default();
                 set.insert(reserve)
@@ -89,17 +94,21 @@ impl ProtocolWatchList for AaveWatchList {
             }
 
             self.persist(borrower).await?;
-        } else {
-            tracing::warn!(%identity, "Failed to parse identity during add");
         }
 
         Ok(())
     }
 
     async fn remove(&self, identity: &str) -> anyhow::Result<()> {
-        if let Ok(TrackerIdentity::AaveV3 { borrower, reserve }) =
-            TrackerIdentity::from_str(identity)
-        {
+        let parsed = match TrackerIdentity::from_str(identity) {
+            Ok(id) => id,
+            Err(e) => {
+                tracing::warn!(%identity, error = %e, "Failed to parse identity during remove");
+                return Ok(());
+            }
+        };
+
+        if let TrackerIdentity::AaveV3 { borrower, reserve } = parsed {
             let (was_removed, should_delete_key) = {
                 if let Some(mut entry) = self.cache.get_mut(&borrower) {
                     if entry.remove(&reserve) {
@@ -131,14 +140,12 @@ impl ProtocolWatchList for AaveWatchList {
         for entry in self.cache.iter() {
             let borrower = *entry.key();
             for reserve in entry.value().iter() {
-                // Ensure format matches TrackerIdentity display implementation
-                let identity = format!(
-                    "{:?}",
-                    TrackerIdentity::AaveV3 {
-                        borrower,
-                        reserve: *reserve
-                    }
-                );
+                // ✅ FIX: Use to_string_id() instead of Debug formatting {:?}
+                let identity = TrackerIdentity::AaveV3 {
+                    borrower,
+                    reserve: *reserve,
+                }
+                .to_string_id();
                 out.push(identity);
             }
         }
@@ -155,10 +162,9 @@ mod tests {
         Address::from_low_u64_be(n)
     }
 
-    // FIX 2: Construct identity string according to TrackerIdentity display format
-    // E.g. "aave:0x...:0x..." or "AaveV3:0x...:0x..." matching your FromStr parser
+    // ✅ FIX: Use to_string_id() in test helper
     fn make_identity(borrower: Address, reserve: Address) -> String {
-        format!("aave:{:?}:{:?}", borrower, reserve)
+        TrackerIdentity::AaveV3 { borrower, reserve }.to_string_id()
     }
 
     fn test_db() -> (tempfile::TempDir, Arc<Db>) {
@@ -180,6 +186,7 @@ mod tests {
 
         let snapshot = list.snapshot();
         assert_eq!(snapshot.len(), 1);
+        assert_eq!(snapshot[0], identity);
         assert!(list.contains(borrower, reserve));
     }
 
