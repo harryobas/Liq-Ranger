@@ -91,7 +91,7 @@ impl LiquidationEngine {
 
         // 4. Concurrent Processing Pipeline (Producer Loop)
         stream::iter(all_candidates)
-            .for_each_concurrent(10, |borrower| {
+            .for_each_concurrent(2, |borrower| {
                 let tx_sender = tx_sender.clone();
                 async move {
                     let src_decimals = borrower.src_decimals;
