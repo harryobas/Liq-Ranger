@@ -29,6 +29,7 @@ use crate::{
         IQuoterV2,
         ISwapRouter
     },
+    adapters::anvil_simulation_sandbox::AnvilSandbox,
     watchlists::{
         aave_watchlist::AaveWatchList,
         bootstrap_state::BootstrapState,
@@ -297,6 +298,20 @@ pub async fn start_liq_data_extractor<M: Middleware + 'static>(
     .await;
 
     Ok(())
+}
+
+pub async fn init_simulation_sandbox<M: Middleware + 'static>(
+    rpc_url: &str,
+    block_number: u64,
+    contract: Arc<IFlashLiquidator<M>>,
+) -> anyhow::Result<Arc<AnvilSandbox<M>>> {
+    // 1. Instantiates Anvil child process & HTTP provider
+    let sandbox = AnvilSandbox::new(rpc_url, block_number, contract)?;
+
+    // 2. CALL HERE: Inject bytecode and fund keeper once on startup
+    sandbox.setup_contracts().await?;
+
+    Ok(Arc::new(sandbox))
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]

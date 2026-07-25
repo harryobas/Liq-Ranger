@@ -14,7 +14,6 @@ mod watchlists;
 use adapters::{
     aave_bootstrap_adapter::AaveBootstrapAdapter,
     aave_protocol_adapter::AaveProtocolAdapter,
-    anvil_simulation_sandbox::AnvilSandbox,
     flash_liquidator_adapter::FlashLiquidatorAdapter,
     morpho_bootstrap_adapter::MorphoBootstrapAdapter,
     morpho_protocol_adapter::MorphoProtocolAdapter,
@@ -35,9 +34,18 @@ use tokio::sync::{broadcast, mpsc, watch};
 use url::Url;
 
 use crate::common::{
-    fetch_contracts, fetch_watchlists, start_aave_watchlist_updater, start_block_watcher,
-    start_liq_data_extractor, start_liquidation_executor, start_morpho_watchlist_updater,
-    start_profit_distributor, start_watchlist_pruner, task_manager::shutdown_all_tasks, AdminCmd,
+    fetch_contracts,
+    fetch_watchlists,
+    start_aave_watchlist_updater,
+    start_block_watcher,
+    start_liq_data_extractor,
+    start_liquidation_executor,
+    start_morpho_watchlist_updater,
+    start_profit_distributor,
+    start_watchlist_pruner,
+    init_simulation_sandbox,
+    task_manager::shutdown_all_tasks,
+    AdminCmd,
     Config,
 };
 
@@ -133,11 +141,11 @@ pub async fn start_liquidation_engine() -> anyhow::Result<()> {
         contracts.swaper.clone(),
     ));
 
-    let simulator = Arc::new(AnvilSandbox::new(
+    let simulator = init_simulation_sandbox(
         &constants::RPC_URL_HTTP,
         0,
-        flash_liq_contract.clone(),
-    )?);
+        flash_liq_contract.clone()
+    ).await?;
 
     let liq_engine = LiquidationEngine::new(protocol_readers, dex_finder, simulator, liquidator);
 

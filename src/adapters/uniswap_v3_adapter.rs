@@ -11,7 +11,7 @@ use crate::{
         ExactInputParams, ExactInputSingleParams, IQuoterV2, ISwapRouter,
         QuoteExactInputSingleParams,
     },
-    constants::{self, USDC, USDT, WETH, WPOL},
+    constants::{self, USDC, USDT, WETH},
     core::{ports::DexRouteFinder, types::MarketQuote},
 };
 
@@ -245,7 +245,7 @@ impl<M: Middleware + 'static> DexRouteFinder for UniswapV3Adapter<M> {
         _dest_decimals: u8,
         amount: U256,
     ) -> anyhow::Result<MarketQuote> {
-        let hubs = [*WETH, *USDC, *USDT, *WPOL];
+        let hubs = [*WETH, *USDC, *USDT];
 
         let (expected_out, topology) = self
             .evaluate_route(src_token, dest_token, amount, &hubs)
