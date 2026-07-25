@@ -20,7 +20,14 @@ use std::sync::Arc;
 
 use crate::{
     common::abi_bindings::{
-        AaveOracle, IAaveV3Pool, IFlashLiquidator, IMorphoBlue, UiPoolDataProvider, IERC20,
+        AaveOracle,
+        IAaveV3Pool,
+        IFlashLiquidator,
+        IMorphoBlue,
+        UiPoolDataProvider,
+        IERC20,
+        IQuoterV2,
+        ISwapRouter
     },
     watchlists::{
         aave_watchlist::AaveWatchList,
@@ -60,6 +67,8 @@ pub struct CoreContracts<M> {
     pub ui_pool_data_provider: UiPoolDataProvider<M>,
     pub morpho: IMorphoBlue<M>,
     pub flash_liq: IFlashLiquidator<M>,
+    pub quoter: IQuoterV2<M>,
+    pub swaper: ISwapRouter<M>
 }
 
 pub struct WatchLists {
@@ -106,12 +115,16 @@ pub fn fetch_contracts<M: Middleware + 'static>(
     let morpho_addr = *constants::MORPHO_BLUE;
     let oracle_addr = *constants::AAVE_ORACLE;
     let ui_pool_data_addr = *constants::UIPOOL_DATA_PROVIDER;
+    let quoter_addr = *constants::UNISWAPV3_QUOTER_V2;
+    let swaper_addr = *constants::UNISWAPV3_ROUTER_02;
 
     let flash_liq = IFlashLiquidator::new(liq_addr, client.clone());
     let aave = IAaveV3Pool::new(aave_addr, client.clone());
     let morpho = IMorphoBlue::new(morpho_addr, client.clone());
     let aave_oracle = AaveOracle::new(oracle_addr, client.clone());
     let ui_pool_data_provider = UiPoolDataProvider::new(ui_pool_data_addr, client.clone());
+    let quoter = IQuoterV2::new(quoter_addr, client.clone());
+    let swaper = ISwapRouter::new(swaper_addr, client.clone());
 
     Ok(CoreContracts {
         aave,
@@ -119,6 +132,8 @@ pub fn fetch_contracts<M: Middleware + 'static>(
         flash_liq,
         aave_oracle,
         ui_pool_data_provider,
+        quoter,
+        swaper
     })
 }
 
@@ -274,7 +289,7 @@ pub async fn start_liq_data_extractor<M: Middleware + 'static>(
     provider: Arc<M>,
 ) -> anyhow::Result<()> {
     let data_extractor = LiqDataExtractor::new(flash_liquidator, db_pool, shutdown, provider);
-    task_manager::spawn_named_and_register("watchlist_pruner", async move {
+    task_manager::spawn_named_and_register("liq_data_extracto", async move {
         if let Err(e) = data_extractor.start().await {
             tracing::error!("❌ liq data extractor task failed: {:?}", e);
         }
@@ -314,7 +329,7 @@ impl LiquidationRecord {
         sqlx::query(
             r#"
             INSERT OR IGNORE INTO liquidations (
-                tx_hash, protocol, borrower, profit_asset, profit_symbol, 
+                tx_hash, protocol, borrower, profit_asset, profit_symbol,
                 collateral_asset, collateral_symbol, profit_amount, block_number, timestamp
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,

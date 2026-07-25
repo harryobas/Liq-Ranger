@@ -31,6 +31,13 @@ pub const SLIPPAGE_BPS: u32 = 50; // 0.5%
 pub static FLASH_LIQUIDATOR: Lazy<Address> =
     Lazy::new(|| Address::from_str("0x089C0634bb99593174D8273f997c9dbC5D9A4991").expect("Failed"));
 
+pub static UNISWAPV3_QUOTER_V2: Lazy<Address> =
+    Lazy::new(|| Address::from_str("0x61fFE014bA17989E743c5F6cB21bF9697530B21e").expect("failed"));
+
+pub static UNISWAPV3_ROUTER_02: Lazy<Address> =
+    Lazy::new(|| Address::from_str("0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45").expect("failed"));
+
+
 pub static LIQ_BYTECODE: Lazy<Bytes> = Lazy::new(|| {
     let bytecode_str = include_str!("./abis/liquidator/flash_liquidator.bin");
     Bytes::from_str(bytecode_str).unwrap_or(Bytes::new())
@@ -42,6 +49,9 @@ pub static USDT: Lazy<Address> =
     Lazy::new(|| Address::from_str("0xc2132D05D31c914a87C6611C10748AEb04B58e8F").expect("Failed"));
 pub static WPOL: Lazy<Address> =
     Lazy::new(|| Address::from_str("0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270").expect("Failed"));
+
+pub static WETH: Lazy<Address> =
+    Lazy::new(|| Address::from_str("0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619").expect("Failed"));
 
 pub static BREET: Lazy<Address> =
     Lazy::new(|| Address::from_str("0x46082c9F4ca0eF92c510984B612183211c0a27dE").expect("Failed"));

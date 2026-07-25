@@ -34,6 +34,7 @@ sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "sqlite", "
 chrono = { version = "0.4", features = ["serde"] }
 url = "2.5.8"
 backoff = { version = "0.4", features = ["tokio"] }
+moka = { version = "0.12", features = ["future"] }
 
 [dev-dependencies]
 tempfile = "3.23.0"
@@ -41,19 +42,19 @@ tempfile = "3.23.0"
 [profile.release]
 # 1. Level 'z' aggressively optimizes for binary size.
 # Alternative: 's' for size-conscious but slightly faster execution.
-opt-level = 3     
+opt-level = 3
 
 # 2. Enables "Link Time Optimization" to remove dead code across crates.
 # Use "fat" for maximum cross-crate optimization.
-lto = "thin"         
+lto = "thin"
 
 # 3. Reduces parallel processing to allow the compiler to see the whole program.
 # Greatly improves code reduction, but makes compilation slower.
-codegen-units = 1   
+codegen-units = 1
 
 # 4. Removes debug symbols and symbol tables automatically.
 # This is usually the single biggest size saver.
-strip = true        
+strip = true
 
 # 5. Removes "unwinding" logic (no stack traces on panic).
 # Smaller binary, but the bot will immediately abort on error.

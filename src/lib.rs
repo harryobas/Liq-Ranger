@@ -12,10 +12,13 @@ mod watchlist_pruner;
 mod watchlists;
 
 use adapters::{
-    aave_bootstrap_adapter::AaveBootstrapAdapter, aave_protocol_adapter::AaveProtocolAdapter,
-    anvil_simulation_sandbox::AnvilSandbox, flash_liquidator_adapter::FlashLiquidatorAdapter,
+    aave_bootstrap_adapter::AaveBootstrapAdapter,
+    aave_protocol_adapter::AaveProtocolAdapter,
+    anvil_simulation_sandbox::AnvilSandbox,
+    flash_liquidator_adapter::FlashLiquidatorAdapter,
     morpho_bootstrap_adapter::MorphoBootstrapAdapter,
-    morpho_protocol_adapter::MorphoProtocolAdapter, paraswap_adapter::ParaSwapAdapter,
+    morpho_protocol_adapter::MorphoProtocolAdapter,
+    uniswap_v3_adapter::UniswapV3Adapter,
 };
 use core::{
     ports::{Bootstrap, LendingProtocolReader},
@@ -32,26 +35,18 @@ use tokio::sync::{broadcast, mpsc, watch};
 use url::Url;
 
 use crate::common::{
-    fetch_contracts,
-    fetch_watchlists,
-    start_aave_watchlist_updater,
-    start_block_watcher,
-    start_liq_data_extractor,
-    start_liquidation_executor,
-    start_morpho_watchlist_updater,
-    start_profit_distributor,
-    start_watchlist_pruner,
-    task_manager::shutdown_all_tasks,
-    AdminCmd,
+    fetch_contracts, fetch_watchlists, start_aave_watchlist_updater, start_block_watcher,
+    start_liq_data_extractor, start_liquidation_executor, start_morpho_watchlist_updater,
+    start_profit_distributor, start_watchlist_pruner, task_manager::shutdown_all_tasks, AdminCmd,
     Config,
 };
 
 pub async fn start_liquidation_engine() -> anyhow::Result<()> {
-    // 1. WebSocket Client: High-speed data streaming (BlockWatcher)
+    // 1. WebSocket Client: High-speed block headers & state streaming (BlockWatcher)
     let ws = Ws::connect(constants::RPC_URL.as_str()).await?;
     let ws_client = Arc::new(Provider::new(ws));
 
-    // 2. HTTP Client: Execution (Bootstraps, Engines, Executors)
+    // 2. HTTP Client: Execution & State Querying (Bootstraps, Engines, Executors)
     let http = Http::new(Url::parse(&*constants::RPC_URL_HTTP)?);
     let http_client = Arc::new(SignerMiddleware::new(
         NonceManagerMiddleware::new(Arc::new(Provider::new(http)), constants::WALLET.address()),
@@ -81,7 +76,7 @@ pub async fn start_liquidation_engine() -> anyhow::Result<()> {
     let w_lists = fetch_watchlists(sled_db)?;
 
     // Shared reference to flash liquidator contract
-    let flash_liq_contract = Arc::new(contracts.flash_liq);
+    let flash_liq_contract = Arc::new(contracts.flash_liq.clone());
 
     // --- Bootstraps (Using HTTP Client) ---
     let bootstrapers: Vec<Arc<dyn Bootstrap>> = vec![
@@ -103,9 +98,7 @@ pub async fn start_liquidation_engine() -> anyhow::Result<()> {
     BootstrapExecutor { bootstrapers }.run_all().await?;
 
     // --- Adapters & Core Engine ---
-    let liquidator = Arc::new(
-        FlashLiquidatorAdapter::new(flash_liq_contract.clone())
-    );
+    let liquidator = Arc::new(FlashLiquidatorAdapter::new(flash_liq_contract.clone()));
 
     let mut aave_config = config::AaveConfig::load()?;
     aave_config.populate_vdebt_tokens(http_client.clone()).await?;
@@ -115,9 +108,9 @@ pub async fn start_liquidation_engine() -> anyhow::Result<()> {
 
     let aave_protocol_reader = AaveProtocolAdapter::new(
         contracts.aave.clone(),
-        contracts.aave_oracle,
+        contracts.aave_oracle.clone(),
         w_lists.aave_watchlist.clone(),
-        contracts.ui_pool_data_provider,
+        contracts.ui_pool_data_provider.clone(),
         http_client.clone(),
         (*aave_config).clone(),
     );
@@ -134,9 +127,10 @@ pub async fn start_liquidation_engine() -> anyhow::Result<()> {
         Arc::new(morpho_protocol_reader),
     ];
 
-    let dex_finder = Arc::new(ParaSwapAdapter::new(
-        flash_liq_contract.address(),
-        constants::CHAIN_ID,
+    // Direct Uniswap V3 On-Chain Quoting (Zero 429 API rate limits)
+    let dex_finder = Arc::new(UniswapV3Adapter::new(
+        contracts.quoter.clone(),
+        contracts.swaper.clone(),
     ));
 
     let simulator = Arc::new(AnvilSandbox::new(
@@ -198,10 +192,10 @@ pub async fn start_liquidation_engine() -> anyhow::Result<()> {
     )
     .await?;
 
-    // Start BlockWatcher LAST after all tasks are subscribed and listening
+    // Start BlockWatcher LAST after all background tasks are listening to `block_rx`
     start_block_watcher(ws_client.clone(), block_tx, shutdown_rx.clone()).await?;
 
-    tracing::info!("🚀 Liquidation system started successfully");
+    tracing::info!("🚀 Liquidation engine started successfully");
 
     // Lifecycle Management
     tokio::signal::ctrl_c().await?;

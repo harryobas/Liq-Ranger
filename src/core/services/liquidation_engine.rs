@@ -91,23 +91,33 @@ impl LiquidationEngine {
 
         // 4. Concurrent Processing Pipeline (Producer Loop)
         stream::iter(all_candidates)
-            .for_each_concurrent(2, |borrower| {
+            .for_each_concurrent(10, |borrower| {
                 let tx_sender = tx_sender.clone();
+                let dex_finder = self.dex_finder.clone();
+                let simulator = self.simulator.clone();
+
                 async move {
                     let src_decimals = borrower.src_decimals;
                     let dest_decimals = borrower.dest_decimals;
 
                     // Step A: Async DEX Route Finding
-                    let quote = match self.dex_finder.get_swap_quote(
-                        borrower.collateral_asset,
-                        borrower.debt_asset,
-                        src_decimals,
-                        dest_decimals,
-                        borrower.seize_amount,
-                    ).await {
+                    let quote = match dex_finder
+                        .get_swap_quote(
+                            borrower.collateral_asset,
+                            borrower.debt_asset,
+                            src_decimals,
+                            dest_decimals,
+                            borrower.seize_amount,
+                        )
+                        .await
+                    {
                         Ok(q) => q,
                         Err(e) => {
-                            tracing::debug!("No routing found for target account {:?}: {:?}", borrower.address, e);
+                            tracing::debug!(
+                                "No routing found for target account {:?}: {:?}",
+                                borrower.address,
+                                e
+                            );
                             return;
                         }
                     };
@@ -137,19 +147,30 @@ impl LiquidationEngine {
                     };
 
                     // Step C: Concurrent EVM State Fork Simulation
-                    let gas_used = match self.simulator.simulate_liquidation(block_number, &job).await {
+                    let gas_used = match simulator.simulate_liquidation(block_number, &job).await {
                         Ok(gas) => gas,
                         Err(e) => {
-                            tracing::warn!("Simulation failed for target {:?}: {:?}", borrower.address, e);
+                            tracing::warn!(
+                                "Simulation failed for target {:?}: {:?}",
+                                borrower.address,
+                                e
+                            );
                             return;
                         }
                     };
 
                     // Step D: Dispatch to Transaction Manager
-                    tracing::info!(?borrower.address, gas_used, "Simulation successful. Queueing job...");
+                    tracing::info!(
+                        ?borrower.address,
+                        gas_used,
+                        "Simulation successful. Queueing job..."
+                    );
                     let payload = TxPayload { job, gas_used };
                     if let Err(e) = tx_sender.send(payload).await {
-                        tracing::error!("Failed to route job to execution task channel: {:?}", e);
+                        tracing::error!(
+                            "Failed to route job to execution task channel: {:?}",
+                            e
+                        );
                     }
                 }
             })

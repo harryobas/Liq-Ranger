@@ -6,3 +6,4 @@ pub mod helpers;
 pub mod morpho_bootstrap_adapter;
 pub mod morpho_protocol_adapter;
 pub mod paraswap_adapter;
+pub mod uniswap_v3_adapter;
