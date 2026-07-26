@@ -179,13 +179,16 @@ where
         let engine = self.engine.clone();
 
         // Execute REVM execution in spawn_blocking pool
-        let sim_result = tokio::task::spawn_blocking(move || engine.simulate(&snapshot, sim_tx))
+        let sim_result = tokio::task::spawn_blocking(move || engine.simulate(
+            &snapshot,
+            sim_tx
+            ))
             .await
             .map_err(|e| anyhow::anyhow!("Blocking task spawn failed: {:?}", e))??;
 
         if !sim_result.success {
             let reason = sim_result.revert_reason.unwrap_or_else(|| "Unknown revert".to_string());
-            warn!(
+            debug!(
                 block = block_number,
                 borrower = %job.borrower,
                 revert_reason = %reason,

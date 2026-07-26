@@ -150,7 +150,7 @@ impl LiquidationEngine {
                     let gas_used = match simulator.simulate_liquidation(block_number, &job).await {
                         Ok(gas) => gas,
                         Err(e) => {
-                            tracing::warn!(
+                            tracing::debug!(
                                 "Simulation failed for target {:?}: {:?}",
                                 borrower.address,
                                 e
