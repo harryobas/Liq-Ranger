@@ -1,12 +1,18 @@
-# --- Stage 1: Chef Base (using Debian to match Runtime) ---
+# --- Stage 1: Chef Base ---
 FROM lukemathwalker/cargo-chef:latest-rust-1.85-bookworm AS chef
 WORKDIR /app
 
-# Install only essential build dependencies (pkg-config, libssl-dev)
+# Install C/C++ compilation tools required by revm, secp256k1, and OpenSSL bindings
 RUN apt-get update && apt-get install -y --no-install-recommends \
-pkg-config \
-libssl-dev \
-&& rm -rf /var/lib/apt/lists/*
+    build-essential \
+    clang \
+    cmake \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Print full backtraces if rustc panics
+ENV RUST_BACKTRACE=1
 
 # --- Stage 2: Planner ---
 FROM chef AS planner
@@ -16,6 +22,10 @@ RUN cargo chef prepare --recipe-path recipe.json
 # --- Stage 3: Builder ---
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
+
+# Prevent OOM kills by capping parallel compiler threads (adjust based on machine memory)
+ENV CARGO_BUILD_JOBS=2
+
 # Build dependencies with --locked for reproducible builds
 RUN cargo chef cook --release --locked --recipe-path recipe.json
 
@@ -26,25 +36,22 @@ RUN cargo build --release --locked --bin liq-ranger
 # --- Stage 4: Minimal Runtime ---
 FROM debian:bookworm-slim AS runtime
 
-# Install runtime dependencies: CA certs, OpenSSL, and tini (init process)
+# Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-ca-certificates \
-libssl3 \
-tini \
-&& rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    libssl3 \
+    tini \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/foundry-rs/foundry:nightly /usr/local/bin/anvil /usr/local/bin/anvil
 
-# Create a non‑root user with a home directory
+
+# Create a non-root user
 RUN useradd -m -s /bin/bash scavenger
 
-# Use a writable workdir owned by the non‑root user
 WORKDIR /home/scavenger/app
 COPY --from=builder /app/target/release/liq-ranger /usr/local/bin/liq-ranger
 RUN chown scavenger:scavenger /home/scavenger/app
 
-# Switch to non‑root user
 USER scavenger
 
-# Use tini as the init process to handle signals and reap zombies
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/liq-ranger"]
