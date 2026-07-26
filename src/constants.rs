@@ -37,7 +37,6 @@ pub static UNISWAPV3_QUOTER_V2: Lazy<Address> =
 pub static UNISWAPV3_ROUTER_02: Lazy<Address> =
     Lazy::new(|| Address::from_str("0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45").expect("failed"));
 
-
 pub static LIQ_BYTECODE: Lazy<Bytes> = Lazy::new(|| {
     let bytecode_str = include_str!("./abis/liquidator/flash_liquidator.bin");
     Bytes::from_str(bytecode_str).unwrap_or(Bytes::new())

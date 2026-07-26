@@ -19,17 +19,11 @@ use crate::{
 use std::sync::Arc;
 
 use crate::{
-    common::abi_bindings::{
-        AaveOracle,
-        IAaveV3Pool,
-        IFlashLiquidator,
-        IMorphoBlue,
-        UiPoolDataProvider,
-        IERC20,
-        IQuoterV2,
-        ISwapRouter
-    },
     adapters::anvil_simulation_sandbox::AnvilSandbox,
+    common::abi_bindings::{
+        AaveOracle, IAaveV3Pool, IFlashLiquidator, IMorphoBlue, IQuoterV2, ISwapRouter,
+        UiPoolDataProvider, IERC20,
+    },
     watchlists::{
         aave_watchlist::AaveWatchList,
         bootstrap_state::BootstrapState,
@@ -69,7 +63,7 @@ pub struct CoreContracts<M> {
     pub morpho: IMorphoBlue<M>,
     pub flash_liq: IFlashLiquidator<M>,
     pub quoter: IQuoterV2<M>,
-    pub swaper: ISwapRouter<M>
+    pub swaper: ISwapRouter<M>,
 }
 
 pub struct WatchLists {
@@ -134,7 +128,7 @@ pub fn fetch_contracts<M: Middleware + 'static>(
         aave_oracle,
         ui_pool_data_provider,
         quoter,
-        swaper
+        swaper,
     })
 }
 
@@ -298,20 +292,6 @@ pub async fn start_liq_data_extractor<M: Middleware + 'static>(
     .await;
 
     Ok(())
-}
-
-pub async fn init_simulation_sandbox<M: Middleware + 'static>(
-    rpc_url: &str,
-    block_number: u64,
-    contract: Arc<IFlashLiquidator<M>>,
-) -> anyhow::Result<Arc<AnvilSandbox<M>>> {
-    // 1. Instantiates Anvil child process & HTTP provider
-    let sandbox = AnvilSandbox::new(rpc_url, block_number, contract)?;
-
-    // 2. CALL HERE: Inject bytecode and fund keeper once on startup
-    sandbox.setup_contracts().await?;
-
-    Ok(Arc::new(sandbox))
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]

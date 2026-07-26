@@ -53,6 +53,12 @@ pub struct TxPayload {
     pub gas_used: u64,
 }
 
+pub struct SimulationResult {
+    pub success: bool,
+    pub gas_used: u64,
+    pub revert_reason: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TrackerIdentity {
     AaveV3 { borrower: Address, reserve: Address },

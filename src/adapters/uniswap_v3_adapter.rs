@@ -1,10 +1,10 @@
-use std::time::Duration;
 use ethers::{
     providers::Middleware,
     types::{Address, Bytes, U256},
 };
-use futures_util::{stream::{self, StreamExt}};
+use futures_util::stream::{self, StreamExt};
 use moka::future::Cache;
+use std::time::Duration;
 
 use crate::{
     common::abi_bindings::{
@@ -78,7 +78,9 @@ impl<M: Middleware> UniswapV3Adapter<M> {
         if let Some(topology) = self.route_cache.get(&cache_key).await {
             match &topology {
                 RouteTopology::SingleHop { fee } => {
-                    let out = self.quote_single_hop(src_token, dest_token, *fee, amount).await;
+                    let out = self
+                        .quote_single_hop(src_token, dest_token, *fee, amount)
+                        .await;
                     if !out.is_zero() {
                         return (out, topology);
                     }
@@ -116,7 +118,9 @@ impl<M: Middleware> UniswapV3Adapter<M> {
 
         // 3. STORE IN CACHE if a valid path was discovered
         if !best_out.is_zero() {
-            self.route_cache.insert(cache_key, best_topology.clone()).await;
+            self.route_cache
+                .insert(cache_key, best_topology.clone())
+                .await;
         }
 
         (best_out, best_topology)
@@ -201,28 +205,30 @@ impl<M: Middleware> UniswapV3Adapter<M> {
             return (U256::zero(), Bytes::default());
         }
 
-        let results = stream::iter(valid_intermediates.into_iter().map(|intermediate| async move {
-            let (out_leg1, fee1) = self
-                .find_best_single_hop(token_in, intermediate, amount_in)
-                .await;
+        let results = stream::iter(valid_intermediates.into_iter().map(
+            |intermediate| async move {
+                let (out_leg1, fee1) = self
+                    .find_best_single_hop(token_in, intermediate, amount_in)
+                    .await;
 
-            if out_leg1.is_zero() {
-                return (U256::zero(), Bytes::default());
-            }
+                if out_leg1.is_zero() {
+                    return (U256::zero(), Bytes::default());
+                }
 
-            let (out_leg2, fee2) = self
-                .find_best_single_hop(intermediate, token_out, out_leg1)
-                .await;
+                let (out_leg2, fee2) = self
+                    .find_best_single_hop(intermediate, token_out, out_leg1)
+                    .await;
 
-            if out_leg2.is_zero() {
-                return (U256::zero(), Bytes::default());
-            }
+                if out_leg2.is_zero() {
+                    return (U256::zero(), Bytes::default());
+                }
 
-            let route_tokens = [token_in, intermediate, token_out];
-            let fees = [fee1, fee2];
+                let route_tokens = [token_in, intermediate, token_out];
+                let fees = [fee1, fee2];
 
-            (out_leg2, encode_v3_path(&route_tokens, &fees))
-        }))
+                (out_leg2, encode_v3_path(&route_tokens, &fees))
+            },
+        ))
         .buffer_unordered(CONCURRENCY_LIMIT)
         .collect::<Vec<_>>()
         .await;
@@ -233,7 +239,6 @@ impl<M: Middleware> UniswapV3Adapter<M> {
             .unwrap_or((U256::zero(), Bytes::default()))
     }
 }
-
 
 #[async_trait::async_trait]
 impl<M: Middleware + 'static> DexRouteFinder for UniswapV3Adapter<M> {

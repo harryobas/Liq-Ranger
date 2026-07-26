@@ -8,15 +8,15 @@ mod db;
 mod liq_data_extractor;
 mod liquidation_executor;
 mod profit_distributor;
+mod simulation;
 mod watchlist_pruner;
 mod watchlists;
 
 use adapters::{
-    aave_bootstrap_adapter::AaveBootstrapAdapter,
-    aave_protocol_adapter::AaveProtocolAdapter,
+    aave_bootstrap_adapter::AaveBootstrapAdapter, aave_protocol_adapter::AaveProtocolAdapter,
     flash_liquidator_adapter::FlashLiquidatorAdapter,
     morpho_bootstrap_adapter::MorphoBootstrapAdapter,
-    morpho_protocol_adapter::MorphoProtocolAdapter,
+    morpho_protocol_adapter::MorphoProtocolAdapter, revm_simulation_adapter::RevmAdapter,
     uniswap_v3_adapter::UniswapV3Adapter,
 };
 use core::{
@@ -34,18 +34,9 @@ use tokio::sync::{broadcast, mpsc, watch};
 use url::Url;
 
 use crate::common::{
-    fetch_contracts,
-    fetch_watchlists,
-    start_aave_watchlist_updater,
-    start_block_watcher,
-    start_liq_data_extractor,
-    start_liquidation_executor,
-    start_morpho_watchlist_updater,
-    start_profit_distributor,
-    start_watchlist_pruner,
-    init_simulation_sandbox,
-    task_manager::shutdown_all_tasks,
-    AdminCmd,
+    fetch_contracts, fetch_watchlists, start_aave_watchlist_updater, start_block_watcher,
+    start_liq_data_extractor, start_liquidation_executor, start_morpho_watchlist_updater,
+    start_profit_distributor, start_watchlist_pruner, task_manager::shutdown_all_tasks, AdminCmd,
     Config,
 };
 
@@ -109,7 +100,9 @@ pub async fn start_liquidation_engine() -> anyhow::Result<()> {
     let liquidator = Arc::new(FlashLiquidatorAdapter::new(flash_liq_contract.clone()));
 
     let mut aave_config = config::AaveConfig::load()?;
-    aave_config.populate_vdebt_tokens(http_client.clone()).await?;
+    aave_config
+        .populate_vdebt_tokens(http_client.clone())
+        .await?;
 
     let aave_config = Arc::new(aave_config);
     let morpho_config = Arc::new(config::MorphoConfig::load()?);
@@ -141,11 +134,10 @@ pub async fn start_liquidation_engine() -> anyhow::Result<()> {
         contracts.swaper.clone(),
     ));
 
-    let simulator = init_simulation_sandbox(
-        &constants::RPC_URL_HTTP,
-        0,
-        flash_liq_contract.clone()
-    ).await?;
+    let simulator = Arc::new(RevmAdapter::new(
+        http_client.clone(),
+        flash_liq_contract.clone(),
+    ));
 
     let liq_engine = LiquidationEngine::new(protocol_readers, dex_finder, simulator, liquidator);
 

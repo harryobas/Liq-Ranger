@@ -51,12 +51,10 @@ abigen!(
     IQuoterV2,
     "src/abis/uniswapv3/quoter2.json",
     event_derives(serde::Deserialize, serde::Serialize)
-
 );
 
 abigen!(
     ISwapRouter,
     "src/abis/uniswapv3/swap_router.json",
     event_derives(serde::Deserialize, serde::Serialize)
-
 );

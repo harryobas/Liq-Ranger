@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use ethers::{
     providers::Middleware,
@@ -10,7 +11,6 @@ use ethers::{
 
 use crate::common::abi_bindings::IFlashLiquidator;
 use crate::core::ports::LiquidationContract;
-
 use crate::core::types::{LiquidationJob, LiquidationParams};
 
 pub struct FlashLiquidatorAdapter<M> {
@@ -50,51 +50,75 @@ impl<M: Middleware + 'static> LiquidationContract for FlashLiquidatorAdapter<M> 
         let provider = self.contract.client().clone();
         let calldata = self.extract_calldata(debt, params)?;
 
-        let (max_fee, priority_fee) =
-            provider
-                .estimate_eip1559_fees(None)
-                .await
-                .unwrap_or_else(|_| {
-                    // Fallback values if the provider fails (200 Gwei max, 50 Gwei priority)
-                    (
-                        U256::from(200_000_000_000u64),
-                        U256::from(50_000_000_000u64),
-                    )
-                });
+        let (base_max_fee, base_priority_fee) = provider
+            .estimate_eip1559_fees(None)
+            .await
+            .unwrap_or_else(|_| {
+                (
+                    U256::from(200_000_000_000u64), // 200 Gwei
+                    U256::from(50_000_000_000u64),  // 50 Gwei
+                )
+            });
 
-        // Build transaction (nonce left empty for middleware to fill)
+        // Boost priority fee by 50% for competitive inclusion
+        let priority_fee = base_priority_fee * 150 / 100;
+        // Ensure max_fee_per_gas covers base fee + priority fee
+        let max_fee = (base_max_fee * 120 / 100) + priority_fee;
+
+        let adjusted_gas_limit = gas_limit * 120 / 100;
+
         let tx = Eip1559TransactionRequest::new()
             .to(self.address())
             .data(calldata)
-            .gas(gas_limit * 120 / 100)
+            .gas(adjusted_gas_limit)
             .max_fee_per_gas(max_fee)
-            .max_priority_fee_per_gas(priority_fee * 150 / 100);
+            .max_priority_fee_per_gas(priority_fee);
 
-        // 3. Send transaction
         let tx_request: TypedTransaction = tx.into();
+
         let pending_tx = provider
             .send_transaction(tx_request, None)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to send tx: {:?}", e))?;
 
         let tx_hash = *pending_tx;
-        let provider_clone = provider.clone();
 
-        tokio::spawn(async move {
-            match provider_clone.get_transaction_receipt(tx_hash).await {
-                Ok(Some(receipt)) => {
-                    if receipt.status != Some(1.into()) {
-                        tracing::error!("❌ Liquidation tx reverted: {:?}", tx_hash);
-                    } else {
-                        tracing::info!("✅ Liquidation confirmed: {:?}", tx_hash);
+        // ✅ Deterministic interval-based polling task
+        tokio::spawn({
+            let provider = provider.clone();
+
+            async move {
+                let mut interval = tokio::time::interval(Duration::from_secs(1));
+
+                for _ in 0..60 {
+                    interval.tick().await;
+
+                    match provider.get_transaction_receipt(tx_hash).await {
+                        Ok(Some(receipt)) => {
+                            if receipt.status == Some(1.into()) {
+                                tracing::info!("✅ Liquidation confirmed: {:?}", tx_hash);
+                            } else {
+                                tracing::error!(
+                                    "❌ Liquidation tx reverted on-chain: {:?}",
+                                    tx_hash
+                                );
+                            }
+                            return;
+                        }
+                        Ok(None) => {
+                            // Still pending in mempool, tick again
+                        }
+                        Err(e) => {
+                            tracing::error!("❌ Error fetching receipt for {:?}: {:?}", tx_hash, e);
+                            return;
+                        }
                     }
                 }
-                Ok(None) => {
-                    tracing::error!("❌ Tx dropped from mempool: {:?}", tx_hash);
-                }
-                Err(e) => {
-                    tracing::error!("❌ Confirmation error for {:?}: {:?}", tx_hash, e);
-                }
+
+                tracing::warn!(
+                    "⚠️ Polling timed out after 60 seconds for tx: {:?}",
+                    tx_hash
+                );
             }
         });
 
