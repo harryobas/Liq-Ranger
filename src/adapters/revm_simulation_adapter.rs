@@ -10,6 +10,7 @@ use revm::{
     primitives::{AccountInfo, KECCAK_EMPTY, U256 as rU256},
 };
 use std::sync::{Arc, Mutex};
+use tracing::{debug, instrument, trace, warn};
 
 use crate::simulation::{
     engine::{SimulationEngine, SimulationTx},
@@ -56,21 +57,13 @@ where
         collateral_asset: Address,
         borrower: Address,
     ) -> anyhow::Result<Arc<BlockSnapshot<M>>> {
-        let warm_targets = [
-            *constants::FLASH_LIQUIDATOR,
-            *constants::AAVE_V3_POOL,
-            *constants::UNISWAPV3_ROUTER_02,
-            *constants::MORPHO_BLUE,
-            debt_asset,
-            collateral_asset,
-            borrower,
-        ];
-
-        // 1. Return cached snapshot, but ensure job-specific target accounts are warmed
+        // Return cached snapshot directly if available for this block
         if let Some(snapshot) = self.snapshot_cache.get(&block_number) {
-            self.warm_accounts(&snapshot.db, &warm_targets);
+            trace!(block = block_number, "Cache hit for REVM block snapshot");
             return Ok(snapshot.clone());
         }
+
+        debug!(block = block_number, "Building new REVM block snapshot from RPC");
 
         let block = self
             .provider
@@ -86,10 +79,11 @@ where
             anyhow::anyhow!("Failed to initialize EthersDB for block {}", block_number)
         })?;
 
+        // Lock-free shared EthersDB wrapper
         let shared_ethers = SharedEthersDB(Arc::new(Mutex::new(ethers_db)));
         let mut db = CacheDB::new(shared_ethers);
 
-        // Pre-fund Keeper
+        // Pre-fund Keeper wallet in the EVM state
         let keeper_addr = constants::WALLET.address();
         let nonce = self
             .provider
@@ -107,8 +101,17 @@ where
             },
         );
 
-        // Warm high-priority target accounts
-        self.warm_accounts(&db, &warm_targets);
+        // Warm target accounts during initial construction
+        let warm_targets = [
+            *constants::FLASH_LIQUIDATOR,
+            *constants::AAVE_V3_POOL,
+            *constants::UNISWAPV3_ROUTER_02,
+            *constants::MORPHO_BLUE,
+            debt_asset,
+            collateral_asset,
+            borrower,
+        ];
+        self.warm_accounts(&mut db, &warm_targets);
 
         let snapshot = Arc::new(BlockSnapshot {
             block_number,
@@ -116,6 +119,7 @@ where
             db: Arc::new(db),
         });
 
+        // Retain only current block and previous block snapshots
         self.snapshot_cache
             .retain(|&cached_block, _| cached_block >= block_number.saturating_sub(1));
         self.snapshot_cache.insert(block_number, snapshot.clone());
@@ -123,7 +127,7 @@ where
         Ok(snapshot)
     }
 
-    fn warm_accounts(&self, db: &CacheDB<SharedEthersDB<M>>, targets: &[Address]) {
+    fn warm_accounts(&self, db: &mut CacheDB<SharedEthersDB<M>>, targets: &[Address]) {
         for addr in targets {
             let r_addr = (*addr).0.into();
             if let Ok(Some(info)) = db.basic(r_addr) {
@@ -141,11 +145,14 @@ where
     M: Middleware + Send + Sync + 'static,
     <M as Middleware>::Error: 'static,
 {
+    #[instrument(skip(self, job), fields(borrower = %job.borrower, debt = %job.debt_asset))]
     async fn simulate_liquidation(
         &self,
         block_number: u64,
         job: &LiquidationJob,
     ) -> anyhow::Result<u64> {
+        debug!(block = block_number, "Starting REVM simulation for liquidation job");
+
         let snapshot = self
             .build_snapshot(
                 block_number,
@@ -171,16 +178,27 @@ where
 
         let engine = self.engine.clone();
 
-        // 3. Double error propagation (??) unwraps both Tokio JoinError and simulation anyhow::Error safely
+        // Execute REVM execution in spawn_blocking pool
         let sim_result = tokio::task::spawn_blocking(move || engine.simulate(&snapshot, sim_tx))
             .await
             .map_err(|e| anyhow::anyhow!("Blocking task spawn failed: {:?}", e))??;
 
         if !sim_result.success {
-            let reason = sim_result.revert_reason.unwrap_or_default();
-            tracing::warn!("Liquidation simulation reverted: {}", reason);
+            let reason = sim_result.revert_reason.unwrap_or_else(|| "Unknown revert".to_string());
+            warn!(
+                block = block_number,
+                borrower = %job.borrower,
+                revert_reason = %reason,
+                "❌ REVM Liquidation Simulation REVERTED"
+            );
             anyhow::bail!("Simulation reverted: {}", reason);
         }
+
+        debug!(
+            block = block_number,
+            gas_used = sim_result.gas_used,
+            "✅ REVM Liquidation Simulation SUCCESSFUL"
+        );
 
         Ok(sim_result.gas_used)
     }

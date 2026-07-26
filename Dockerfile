@@ -43,8 +43,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tini \
     && rm -rf /var/lib/apt/lists/*
 
-
-
 # Create a non-root user
 RUN useradd -m -s /bin/bash scavenger
 
