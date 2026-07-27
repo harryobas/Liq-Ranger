@@ -1,5 +1,4 @@
-use ethers::providers::Middleware;
-use ethers::types::U256;
+use ethers::{providers::Middleware, types::U256};
 use std::sync::Arc;
 
 use crate::common::{
@@ -116,20 +115,12 @@ impl<M: Middleware + 'static> AaveProtocolAdapter<M> {
             .await
             .ok()?;
 
-            let (src_decimals, dest_decimals) = match tokio::try_join!(
-                get_token_decimals(collateral_candidate.asset, client.clone()),
-                get_token_decimals(reserve, client.clone())
-            ) {
-                Ok((src_decimals, dest_decimals)) => (src_decimals, dest_decimals),
-                Err(e) => {
-                    tracing::error!(
-                        "Failed to fetch token decimals for borrower {:?}: {:?}",
-                        borrower,
-                        e
-                    );
-                    return None;
-                }
-            };
+            let src_decimals = get_token_decimals(collateral_candidate.asset, client.clone())
+                .await
+                .unwrap_or(18);
+            let dest_decimals = get_token_decimals(reserve, client.clone())
+                .await
+                .unwrap_or(18);
 
             return Some(BorrowerProfile {
                 address: borrower,
@@ -143,6 +134,7 @@ impl<M: Middleware + 'static> AaveProtocolAdapter<M> {
                 src_decimals,
                 dest_decimals,
                 protocol: Protocol::Aave,
+                identity,
             });
         }
 
@@ -182,5 +174,36 @@ impl<M: Middleware + 'static> LendingProtocolReader for AaveProtocolAdapter<M> {
             .await;
 
         Ok(candidates)
+    }
+
+    fn name(&self) -> &'static str {
+        "aave"
+    }
+
+    async fn refresh_borrower(&self, identity: &str) -> anyhow::Result<BorrowerProfile> {
+        // Fast-path Health Check to avoid redundant heavy queries if borrower repaved/healed
+        if let Ok(TrackerIdentity::AaveV3 { borrower, .. }) = identity.parse::<TrackerIdentity>() {
+            let (_, _, _, _, _, hf) = self
+                .pool
+                .get_user_account_data(borrower)
+                .call()
+                .await
+                .map_err(|e| anyhow::anyhow!("RPC error fetching account data: {:?}", e))?;
+
+            if hf >= U256::exp10(18) {
+                anyhow::bail!("Borrower {:?} is healthy (HF: {})", borrower, hf);
+            }
+        }
+
+        Self::evaluate_target(
+            identity.to_string(),
+            self.pool.clone(),
+            self.oracle.clone(),
+            self.ui_pool_data_provider.clone(),
+            self.client.clone(),
+            self.config.clone(),
+        )
+        .await
+        .ok_or_else(|| anyhow::anyhow!("Position no longer liquidatable for identity: {}", identity))
     }
 }

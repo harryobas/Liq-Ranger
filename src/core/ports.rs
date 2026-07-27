@@ -7,6 +7,8 @@ use std::collections::HashSet;
 #[async_trait]
 pub trait LendingProtocolReader: Send + Sync {
     async fn fetch_liquidation_candidates(&self) -> anyhow::Result<Vec<BorrowerProfile>>;
+    async fn refresh_borrower(&self, identity: &str) -> anyhow::Result<BorrowerProfile>;
+    fn name(&self) -> &'static str;
 }
 
 #[async_trait]
@@ -44,16 +46,6 @@ pub trait ProtocolWatchList: Sync + Send {
     async fn remove(&self, identity: &str) -> anyhow::Result<()>;
     async fn add(&self, identity: &str) -> anyhow::Result<()>;
     fn snapshot(&self) -> Vec<String>;
-}
-
-pub trait KeeperWalletManager: Send + Sync {
-    /// Retrieves current native gas token balance of the execution engine
-    async fn current_gas_balance(&self) -> anyhow::Result<U256>;
-}
-
-pub trait SettlementAssetRegistry: Send + Sync {
-    /// Discovers all unique tokens touched during trading cycles
-    async fn fetch_historical_active_assets(&self) -> anyhow::Result<HashSet<Address>>;
 }
 
 #[async_trait::async_trait]

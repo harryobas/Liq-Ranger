@@ -219,8 +219,8 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
         assets.extend(constants::PROFIT_DIST_ASSETS.iter().cloned());
 
         let sql = "
-        SELECT profit_asset AS asset_addr FROM liquidations 
-        UNION 
+        SELECT profit_asset AS asset_addr FROM liquidations
+        UNION
         SELECT collateral_asset AS asset_addr FROM liquidations";
 
         let rows = sqlx::query(sql).fetch_all(&self.pool).await?;
@@ -246,21 +246,3 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
     }
 }
 
-/// Task starter wrapper compatible with `start_liquidation_engines`
-pub async fn start_profit_distributor<M: Middleware + 'static>(
-    client: Arc<M>,
-    contract: Arc<IFlashLiquidator<M>>,
-    pool: sqlx::Pool<sqlx::Sqlite>,
-    shutdown: watch::Receiver<bool>,
-) -> Result<()> {
-    let distributor = Arc::new(ProfitDistributor::new(client, contract, pool));
-
-    task_manager::spawn_named_and_register("profit_distributor", async move {
-        if let Err(e) = distributor.start(shutdown).await {
-            tracing::error!("❌ ProfitDistributor task error: {:?}", e);
-        }
-    })
-    .await;
-
-    Ok(())
-}

@@ -2,24 +2,21 @@
 
 use super::helpers::morpho_math_helpers::*;
 use crate::common::abi_bindings::{IMorphoBlue, IOracle, MarketParams};
+use crate::common::get_token_decimals;
 use crate::config::MorphoConfig;
 use crate::core::ports::{LendingProtocolReader, ProtocolWatchList};
 use crate::core::types::{
-    BorrowerProfile, HealthCheck, LiquidationMode, Market, Position, TrackerIdentity,
+    BorrowerProfile, HealthCheck, LiquidationMode, Market, Position, Protocol, TrackerIdentity,
 };
 use ethers::{
     providers::Middleware,
     types::{Address, H256, U256},
 };
-use std::sync::Arc;
-
-use crate::common::get_token_decimals;
-use crate::core::types::Protocol;
 use futures_util::stream::{self, StreamExt};
+use std::sync::Arc;
 
 pub struct MorphoProtocolAdapter<M: Middleware + 'static> {
     pub morpho: IMorphoBlue<M>,
-    //pub oracle: IOracle<M>,
     pub watchlist: Arc<dyn ProtocolWatchList>,
     pub client: Arc<M>,
     pub config: MorphoConfig,
@@ -28,14 +25,12 @@ pub struct MorphoProtocolAdapter<M: Middleware + 'static> {
 impl<M: Middleware + 'static> MorphoProtocolAdapter<M> {
     pub fn new(
         morpho: IMorphoBlue<M>,
-        //oracle: IOracle<M>,
         watchlist: Arc<dyn ProtocolWatchList>,
         client: Arc<M>,
         config: MorphoConfig,
     ) -> Self {
         Self {
             morpho,
-            //oracle,
             watchlist,
             client,
             config,
@@ -62,8 +57,11 @@ impl<M: Middleware + 'static> MorphoProtocolAdapter<M> {
             H256::from(market_id)
         );
 
+        let market_bytes = market_id.to_fixed_bytes();
+
+        // 1. Fetch Borrower Position
         let (_, borrow_shares, collateral) = morpho
-            .position(market_id.to_fixed_bytes(), borrower)
+            .position(market_bytes, borrower)
             .call()
             .await
             .ok()?;
@@ -72,14 +70,12 @@ impl<M: Middleware + 'static> MorphoProtocolAdapter<M> {
             return None;
         }
 
-        let (_, _, total_borrow_assets, total_borrow_shares, _, _) = morpho
-            .market(market_id.to_fixed_bytes())
-            .call()
-            .await
-            .ok()?;
+        // 2. Fetch Market State & Market Parameters
+        let (_, _, total_borrow_assets, total_borrow_shares, _, _) =
+            morpho.market(market_bytes).call().await.ok()?;
 
         let (loan_token, collateral_token, oracle_addr, _, lltv) = morpho
-            .id_to_market_params(market_id.to_fixed_bytes())
+            .id_to_market_params(market_bytes)
             .call()
             .await
             .ok()?;
@@ -97,6 +93,7 @@ impl<M: Middleware + 'static> MorphoProtocolAdapter<M> {
             lltv,
         };
 
+        // 3. Fetch Price from Oracle
         let oracle_contract = IOracle::new(oracle_addr, client.clone());
         let price = oracle_contract.price().call().await.ok()?;
 
@@ -105,6 +102,7 @@ impl<M: Middleware + 'static> MorphoProtocolAdapter<M> {
             collateral: collateral.into(),
         };
 
+        // 4. Health Factor Evaluation
         if position.is_healthy(&market, &market_params.lltv, &price) {
             tracing::debug!(
                 "Borrower: {:?} is healthy in market: {:?}",
@@ -133,9 +131,7 @@ impl<M: Middleware + 'static> MorphoProtocolAdapter<M> {
 
         let available_collateral = U256::from(collateral);
 
-        // ─────────────────────────────────────────────
-        // Liquidation Mode Assignment
-        // ─────────────────────────────────────────────
+        // 5. Liquidation Mode Determination
         let mode = if available_collateral >= required_collateral {
             let seized_for_swap = seized_assets_from_repaid_shares(
                 borrow_shares_u256,
@@ -177,11 +173,13 @@ impl<M: Middleware + 'static> MorphoProtocolAdapter<M> {
             LiquidationMode::SeizeCollateral { seized_assets } => (U256::zero(), *seized_assets),
         };
 
-        let (src_decimals, dest_decimals) = tokio::try_join!(
-            get_token_decimals(collateral_token, client.clone()),
-            get_token_decimals(loan_token, client.clone())
-        )
-        .ok()?;
+        // 6. Decimals Fetching with Resilient Fallbacks
+        let src_decimals = get_token_decimals(collateral_token, client.clone())
+            .await
+            .unwrap_or(18);
+        let dest_decimals = get_token_decimals(loan_token, client.clone())
+            .await
+            .unwrap_or(18);
 
         Some(BorrowerProfile {
             address: borrower,
@@ -195,6 +193,7 @@ impl<M: Middleware + 'static> MorphoProtocolAdapter<M> {
             src_decimals,
             dest_decimals,
             protocol: Protocol::Morpho,
+            identity,
         })
     }
 }
@@ -215,11 +214,42 @@ impl<M: Middleware + 'static> LendingProtocolReader for MorphoProtocolAdapter<M>
             .map(move |identity| {
                 Self::evaluate_target(identity, morpho.clone(), client.clone(), config.clone())
             })
-            .buffer_unordered(10) // Concurrently fetch up to 10 users at a time without bottlenecking
+            .buffer_unordered(10)
             .filter_map(|opt| async move { opt })
             .collect::<Vec<BorrowerProfile>>()
             .await;
 
         Ok(candidates)
+    }
+
+    fn name(&self) -> &'static str {
+        "morpho"
+    }
+
+    async fn refresh_borrower(&self, identity: &str) -> anyhow::Result<BorrowerProfile> {
+        // Fast-path: Rapidly check if the borrow position was already cleared/repaid
+        if let Ok(TrackerIdentity::MorphoBlue { market_id, borrower }) =
+            identity.parse::<TrackerIdentity>()
+        {
+            let (_, borrow_shares, _) = self
+                .morpho
+                .position(market_id.to_fixed_bytes(), borrower)
+                .call()
+                .await
+                .map_err(|e| anyhow::anyhow!("RPC error checking Morpho position: {:?}", e))?;
+
+            if borrow_shares == 0 {
+                anyhow::bail!("Borrower {:?} has no outstanding debt shares", borrower);
+            }
+        }
+
+        Self::evaluate_target(
+            identity.to_string(),
+            self.morpho.clone(),
+            self.client.clone(),
+            self.config.clone(),
+        )
+        .await
+        .ok_or_else(|| anyhow::anyhow!("Position no longer liquidatable for identity: {}", identity))
     }
 }

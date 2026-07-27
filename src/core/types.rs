@@ -22,6 +22,7 @@ pub struct BorrowerProfile {
     pub src_decimals: u8,
     pub dest_decimals: u8,
     pub protocol: Protocol,
+    pub identity: String,
 }
 
 #[derive(Debug, Clone)]
@@ -46,6 +47,8 @@ pub struct LiquidationJob {
     pub market_id: Option<H256>,
     pub protocol: Protocol,
     pub min_amt_out: U256,
+    pub identity: String,
+    pub seize_amount: U256
 }
 
 pub struct TxPayload {
@@ -130,7 +133,7 @@ impl FromStr for TrackerIdentity {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum Protocol {
     Morpho,
     Aave,
