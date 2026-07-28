@@ -1,13 +1,12 @@
 use ethers::providers::Middleware;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::{broadcast::Receiver, watch};
 use tracing::{debug, error, info, warn};
 
 use crate::core::services::liquidation_engine::LiquidationEngine;
 
-/// Generous safety timeout to clean up hung RPC sockets without dropping candidate discovery prematurely
-const DISCOVERY_SAFETY_TIMEOUT_MS: u64 = 10000;
+/// Execution interval in blocks (e.g., run every 5 blocks)
+const BLOCK_INTERVAL: u64 = 3;
 
 pub struct LiqExecutor<M> {
     engine: LiquidationEngine,
@@ -33,12 +32,11 @@ impl<M: Middleware + 'static> LiqExecutor<M> {
 
     pub async fn start(&mut self) -> anyhow::Result<()> {
         info!(
-            safety_timeout_ms = DISCOVERY_SAFETY_TIMEOUT_MS,
-            "🚀 Liquidation executor active — Persistent candidate scanning mode"
+            block_interval = BLOCK_INTERVAL,
+            "🚀 Liquidation executor active — 3-block interval execution mode (No Timeouts)"
         );
 
         let mut last_processed_block: u64 = 0;
-        // Use a JoinSet or spawn detached discovery tasks to avoid killing Phase 1 evaluations
         let mut tracker = tokio::task::JoinSet::new();
 
         loop {
@@ -50,11 +48,11 @@ impl<M: Middleware + 'static> LiqExecutor<M> {
                     break;
                 }
 
-                // Clean up finished task handles to prevent memory accumulation in the JoinSet
+                // Clean up finished task handles to prevent memory accumulation in JoinSet
                 Some(res) = tracker.join_next() => {
                     if let Err(e) = res {
                         if !e.is_cancelled() {
-                            error!(error = ?e, "❌ Discovery task panicked");
+                            error!(error = ?e, "❌ 5-block cycle task panicked");
                         }
                     }
                 }
@@ -83,38 +81,50 @@ impl<M: Middleware + 'static> LiqExecutor<M> {
                         }
                     };
 
-                    // Ignore older or duplicate block triggers
+                    // Ignore older or already-handled blocks
                     if block_number <= last_processed_block {
                         continue;
                     }
-                    last_processed_block = block_number;
 
+                    // 1. Check if we hit the 5-block boundary
+                    let blocks_elapsed = block_number.saturating_sub(last_processed_block);
+                    let is_interval_block = block_number % BLOCK_INTERVAL == 0;
+
+                    if !is_interval_block && blocks_elapsed < BLOCK_INTERVAL {
+                        continue;
+                    }
+
+                    // 2. Overlap Guard: Skip cycle if previous 3-block cycle is still active
+                    if tracker.len() > 0 {
+                        warn!(
+                            block = block_number,
+                            in_flight_tasks = tracker.len(),
+                            "⚠️ Previous 3-block cycle still running! Skipping interval to prevent task accumulation."
+                        );
+                        continue;
+                    }
+
+                    last_processed_block = block_number;
                     let engine = self.engine.clone();
 
-                    // Spawn background discovery cycle. It runs to completion independently
-                    // and registers found candidates into the persistent Candidate Queue.
+                    // Spawn 5-block background discovery & execution cycle
                     tracker.spawn(async move {
-                        debug!(block = block_number, "⚡ Spawning candidate discovery cycle");
+                        info!(
+                            block = block_number,
+                            interval = BLOCK_INTERVAL,
+                            "⚡ Triggering 3-block batched liquidation cycle"
+                        );
 
-                        let timeout_duration = Duration::from_millis(DISCOVERY_SAFETY_TIMEOUT_MS);
-                        let cycle_future = engine.run_liquidation_cycle(block_number);
-
-                        match tokio::time::timeout(timeout_duration, cycle_future).await {
-                            Ok(Ok(_)) => {
-                                debug!(block = block_number, "✅ Discovery completed successfully");
+                        // Direct execution without tokio::time::timeout wrapper
+                        match engine.run_liquidation_cycle(block_number).await {
+                            Ok(_) => {
+                                debug!(block = block_number, "✅ 5-block cycle completed successfully");
                             }
-                            Ok(Err(e)) => {
+                            Err(e) => {
                                 error!(
                                     block = block_number,
                                     error = ?e,
-                                    "❌ Engine discovery failure"
-                                );
-                            }
-                            Err(_) => {
-                                warn!(
-                                    block = block_number,
-                                    timeout_ms = DISCOVERY_SAFETY_TIMEOUT_MS,
-                                    "⏱️ Discovery timed out! Sockets auto-cleaned."
+                                    "❌ 3-block cycle execution failure"
                                 );
                             }
                         }

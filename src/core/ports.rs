@@ -2,7 +2,7 @@ use super::types::{BorrowerProfile, LiquidationJob, MarketQuote};
 use async_trait::async_trait;
 use ethers::types::{Address, H256, U256};
 
-use std::collections::HashSet;
+
 
 #[async_trait]
 pub trait LendingProtocolReader: Send + Sync {

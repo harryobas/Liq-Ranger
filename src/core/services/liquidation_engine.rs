@@ -1,5 +1,3 @@
-// src/core/engine.rs
-
 use crate::core::ports::{
     DexRouteFinder, EvmSimulator, LendingProtocolReader, LiquidationContract,
 };
@@ -56,7 +54,7 @@ impl LiquidationEngine {
         let cycle_start = Instant::now();
         let stats = Arc::new(CycleStats::default());
 
-        info!(block = block_number, "Starting liquidation cycle");
+        info!(block = block_number, "Starting 5-block liquidation cycle");
 
         // ---------------------------------------------------------------------
         // Stage 1: Instrumented Protocol Candidate Discovery
@@ -99,14 +97,14 @@ impl LiquidationEngine {
 
         stats.candidates.store(candidates.len(), Ordering::Relaxed);
 
-        debug!(
+        info!(
             total_candidates = candidates.len(),
             elapsed_ms = stage_timer.elapsed().as_millis(),
             "Candidate discovery complete"
         );
 
         if candidates.is_empty() {
-            debug!(
+            info!(
                 block = block_number,
                 candidates = 0,
                 quoted = 0,
@@ -119,13 +117,13 @@ impl LiquidationEngine {
                 submitted = 0,
                 confirmed = 0,
                 elapsed_ms = cycle_start.elapsed().as_millis(),
-                "Liquidation cycle summary"
+                "Liquidation cycle summary (No Candidates)"
             );
             return Ok(());
         }
 
         // ---------------------------------------------------------------------
-        // Stage 2: Adaptive Transaction Manager Task
+        // Stage 2: Concurrent Adaptive Transaction Manager Task
         // ---------------------------------------------------------------------
         let (tx_sender, mut tx_receiver) = mpsc::channel::<TxPayload>(100);
         let liquidator = self.liquidator.clone();
@@ -136,89 +134,98 @@ impl LiquidationEngine {
 
         let tx_manager_task = tokio::spawn(async move {
             while let Some(mut payload) = tx_receiver.recv().await {
-                let job = &payload.job;
+                let liquidator = liquidator.clone();
+                let protocol_readers = protocol_readers.clone();
+                let dex_finder = dex_finder.clone();
+                let simulator = simulator.clone();
+                let tx_stats = tx_stats.clone();
 
-                // --- Ultra-Low Latency State Refresh ---
-                if let Some(reader) = protocol_readers
-                    .iter()
-                    .find(|r| r.name() == protocol_name(job.protocol))
-                {
-                    match reader.refresh_borrower(&job.identity).await {
-                        Ok(refreshed) => {
-                            let state_changed = refreshed.debt_to_cover != job.debt_to_cover
-                                || refreshed.seize_amount != job.seize_amount;
+                // Spawn concurrent execution tasks to prevent channel blocking
+                tokio::spawn(async move {
+                    let job = &payload.job;
 
-                            if state_changed {
-                                debug!(
-                                    borrower = %job.borrower,
-                                    old_debt = %job.debt_to_cover,
-                                    new_debt = %refreshed.debt_to_cover,
-                                    "🔄 State shift detected! Triggering fast-path re-quote & re-simulation"
-                                );
+                    // --- JIT State Refresh Safety Guard ---
+                    if let Some(reader) = protocol_readers
+                        .iter()
+                        .find(|r| r.name() == protocol_name(job.protocol))
+                    {
+                        match reader.refresh_borrower(&job.identity).await {
+                            Ok(refreshed) => {
+                                let state_changed = refreshed.debt_to_cover != job.debt_to_cover
+                                    || refreshed.seize_amount != job.seize_amount;
 
-                                match try_revalidate_and_simulate(
-                                    dex_finder.as_ref(),
-                                    simulator.as_ref(),
-                                    refreshed,
-                                    job.clone(),
-                                    block_number,
-                                )
-                                .await
-                                {
-                                    Ok(updated_payload) => {
-                                        payload = updated_payload;
-                                        debug!(
-                                            borrower = %payload.job.borrower,
-                                            "Re-validation successful"
-                                        );
-                                    }
-                                    Err(e) => {
-                                        tx_stats.jit_failed.fetch_add(1, Ordering::Relaxed);
-                                        info!(
-                                            borrower = %job.borrower,
-                                            error = ?e,
-                                            "🛑 Re-validation failed. Dropping transaction."
-                                        );
-                                        continue;
+                                if state_changed {
+                                    info!(
+                                        borrower = %job.borrower,
+                                        old_debt = %job.debt_to_cover,
+                                        new_debt = %refreshed.debt_to_cover,
+                                        "🔄 State shift detected! Triggering fast-path re-quote & re-simulation"
+                                    );
+
+                                    match try_revalidate_and_simulate(
+                                        dex_finder.as_ref(),
+                                        simulator.as_ref(),
+                                        refreshed,
+                                        job.clone(),
+                                        block_number,
+                                    )
+                                    .await
+                                    {
+                                        Ok(updated_payload) => {
+                                            payload = updated_payload;
+                                            info!(
+                                                borrower = %payload.job.borrower,
+                                                "Re-validation successful"
+                                            );
+                                        }
+                                        Err(e) => {
+                                            tx_stats.jit_failed.fetch_add(1, Ordering::Relaxed);
+                                            warn!(
+                                                borrower = %job.borrower,
+                                                error = ?e,
+                                                "🛑 Re-validation failed. Dropping transaction."
+                                            );
+                                            return;
+                                        }
                                     }
                                 }
                             }
+                            Err(e) => {
+                                tx_stats.jit_failed.fetch_add(1, Ordering::Relaxed);
+                                warn!(
+                                    borrower = %job.borrower,
+                                    error = ?e,
+                                    "🛑 Refresh failed or position healthy/closed. Aborting broadcast."
+                                );
+                                return;
+                            }
+                        }
+                    }
+
+                    // --- Broadcast Transaction ---
+                    tx_stats.submitted.fetch_add(1, Ordering::Relaxed);
+
+                    info!(
+                        borrower = %payload.job.borrower,
+                        protocol = ?payload.job.protocol,
+                        gas_limit = payload.gas_used,
+                        debt_to_cover = %payload.job.debt_to_cover,
+                        "Broadcasting liquidation"
+                    );
+
+                    match liquidator
+                        .execute_liquidation(payload.job.clone(), payload.gas_used.into())
+                        .await
+                    {
+                        Ok(_) => {
+                            tx_stats.confirmed.fetch_add(1, Ordering::Relaxed);
+                            info!(borrower = %payload.job.borrower, "Liquidation confirmed");
                         }
                         Err(e) => {
-                            tx_stats.jit_failed.fetch_add(1, Ordering::Relaxed);
-                            warn!(
-                                borrower = %job.borrower,
-                                error = ?e,
-                                "🛑 Refresh failed or position healthy/closed. Aborting broadcast."
-                            );
-                            continue;
+                            error!(borrower = %payload.job.borrower, error = ?e, "Broadcasting failed");
                         }
                     }
-                }
-
-                // --- Broadcast Transaction ---
-                tx_stats.submitted.fetch_add(1, Ordering::Relaxed);
-
-                debug!(
-                    borrower = %payload.job.borrower,
-                    protocol = ?payload.job.protocol,
-                    gas_limit = payload.gas_used,
-                    debt_to_cover = %payload.job.debt_to_cover,
-                    "Broadcasting liquidation"
-                );
-
-                match liquidator
-                    .execute_liquidation(payload.job.clone(), payload.gas_used.into())
-                    .await
-                {
-                    Ok(_) => {
-                        tx_stats.confirmed.fetch_add(1, Ordering::Relaxed);
-                        debug!(borrower = %payload.job.borrower, "Liquidation confirmed");
-                    }
-                    Err(e) => {
-                        error!(borrower = %payload.job.borrower, error = ?e, "Broadcasting failed");
-                    }
-                }
+                });
             }
         });
 
@@ -226,14 +233,14 @@ impl LiquidationEngine {
         // Stage 3: Candidate Pipeline (Routing -> Sim -> Queue)
         // ---------------------------------------------------------------------
         stream::iter(candidates.clone())
-            .for_each_concurrent(10, |borrower| {
+            .for_each_concurrent(25, |borrower| {
                 let tx_sender = tx_sender.clone();
                 let dex_finder = self.dex_finder.clone();
                 let simulator = self.simulator.clone();
                 let stats = Arc::clone(&stats);
 
                 async move {
-                    debug!(
+                    info!(
                         borrower = %borrower.address,
                         protocol = ?borrower.protocol,
                         debt = %borrower.debt_to_cover,
@@ -243,7 +250,7 @@ impl LiquidationEngine {
                     );
 
                     // Step A: Request Quote
-                    debug!(
+                    info!(
                         borrower = %borrower.address,
                         collateral = ?borrower.collateral_asset,
                         debt = ?borrower.debt_asset,
@@ -275,7 +282,7 @@ impl LiquidationEngine {
                         }
                         Err(e) => {
                             stats.quote_failed.fetch_add(1, Ordering::Relaxed);
-                            info!(
+                            warn!(
                                 borrower = %borrower.address,
                                 error = ?e,
                                 reason = "DEX quote request failed",
@@ -290,7 +297,7 @@ impl LiquidationEngine {
                         stats.unprofitable.fetch_add(1, Ordering::Relaxed);
                         let shortfall = borrower.debt_to_cover.saturating_sub(quote.min_amt_out);
 
-                        debug!(
+                        info!(
                             borrower = %borrower.address,
                             debt = %borrower.debt_to_cover,
                             quote = %quote.min_amt_out,
@@ -321,7 +328,7 @@ impl LiquidationEngine {
                     // Step C: EVM Simulation
                     stats.simulated.fetch_add(1, Ordering::Relaxed);
 
-                    debug!(
+                    info!(
                         borrower = %borrower.address,
                         protocol = protocol_name(borrower.protocol),
                         "Starting EVM simulation"
@@ -352,7 +359,7 @@ impl LiquidationEngine {
                     // Step D: Queue for Dispatch
                     stats.queued.fetch_add(1, Ordering::Relaxed);
 
-                    debug!(
+                    info!(
                         borrower = %borrower.address,
                         protocol = ?borrower.protocol,
                         gas = gas_used,
