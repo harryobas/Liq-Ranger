@@ -2,13 +2,12 @@ use ethers::providers::Middleware;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{broadcast::Receiver, watch};
-use tokio::task::JoinHandle;
 use tracing::{debug, error, info, warn};
 
 use crate::core::services::liquidation_engine::LiquidationEngine;
 
-/// Maximum allowable execution time per block cycle before forced timeout
-const CYCLE_TIMEOUT_MS: u64 = 3000;
+/// Generous safety timeout to clean up hung RPC sockets without dropping candidate discovery prematurely
+const DISCOVERY_SAFETY_TIMEOUT_MS: u64 = 5000;
 
 pub struct LiqExecutor<M> {
     engine: LiquidationEngine,
@@ -34,30 +33,36 @@ impl<M: Middleware + 'static> LiqExecutor<M> {
 
     pub async fn start(&mut self) -> anyhow::Result<()> {
         info!(
-            timeout_ms = CYCLE_TIMEOUT_MS,
-            "🚀 Liquidation executor active — strict tip-state cancellation mode"
+            safety_timeout_ms = DISCOVERY_SAFETY_TIMEOUT_MS,
+            "🚀 Liquidation executor active — Persistent candidate scanning mode"
         );
 
         let mut last_processed_block: u64 = 0;
-        let mut active_task: Option<JoinHandle<()>> = None;
+        // Use a JoinSet or spawn detached discovery tasks to avoid killing Phase 1 evaluations
+        let mut tracker = tokio::task::JoinSet::new();
 
         loop {
             tokio::select! {
-                // Graceful Shutdown: Abort any running task immediately and exit cleanly
+                // Graceful Shutdown: Drain and abort all background tasks
                 _ = self.shutdown.changed() => {
-                    info!("🛑 Liquidation executor shutting down");
-                    if let Some(task) = active_task.take() {
-                        task.abort();
-                    }
+                    info!("🛑 Liquidation executor shutting down — aborting background tasks");
+                    tracker.shutdown().await;
                     break;
+                }
+
+                // Clean up finished task handles to prevent memory accumulation in the JoinSet
+                Some(res) = tracker.join_next() => {
+                    if let Err(e) = res {
+                        if !e.is_cancelled() {
+                            error!(error = ?e, "❌ Discovery task panicked");
+                        }
+                    }
                 }
 
                 // Block Stream Processing
                 recv = self.receiver.recv() => {
                     let block_number = match recv {
                         Ok(b) => b,
-
-                        // Fallback query to RPC client on channel lag
                         Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
                             warn!(
                                 dropped_blocks = n,
@@ -71,12 +76,9 @@ impl<M: Middleware + 'static> LiqExecutor<M> {
                                 }
                             }
                         }
-
                         Err(tokio::sync::broadcast::error::RecvError::Closed) => {
                             warn!("📴 Block channel closed");
-                            if let Some(task) = active_task.take() {
-                                task.abort();
-                            }
+                            tracker.shutdown().await;
                             break;
                         }
                     };
@@ -87,48 +89,36 @@ impl<M: Middleware + 'static> LiqExecutor<M> {
                     }
                     last_processed_block = block_number;
 
-                    // 1. INSTANT ABORT: Abort stale cycle from previous block if still running
-                    if let Some(previous_task) = active_task.take() {
-                        if !previous_task.is_finished() {
-                            warn!(
-                                block = block_number,
-                                "⚡ New block tip arrived. Aborting stale cycle from previous block."
-                            );
-                            previous_task.abort();
-                        }
-                    }
-
                     let engine = self.engine.clone();
 
-                    // 2. Spawn cycle execution for the newest block tip
-                    let handle = tokio::spawn(async move {
-                        debug!(block = block_number, "⚡ Executing liquidation cycle");
+                    // Spawn background discovery cycle. It runs to completion independently
+                    // and registers found candidates into the persistent Candidate Queue.
+                    tracker.spawn(async move {
+                        debug!(block = block_number, "⚡ Spawning candidate discovery cycle");
 
-                        let timeout_duration = Duration::from_millis(CYCLE_TIMEOUT_MS);
+                        let timeout_duration = Duration::from_millis(DISCOVERY_SAFETY_TIMEOUT_MS);
                         let cycle_future = engine.run_liquidation_cycle(block_number);
 
                         match tokio::time::timeout(timeout_duration, cycle_future).await {
                             Ok(Ok(_)) => {
-                                debug!(block = block_number, "✅ Cycle completed within budget");
+                                debug!(block = block_number, "✅ Discovery completed successfully");
                             }
                             Ok(Err(e)) => {
                                 error!(
                                     block = block_number,
                                     error = ?e,
-                                    "❌ Engine execution failure"
+                                    "❌ Engine discovery failure"
                                 );
                             }
                             Err(_) => {
                                 warn!(
                                     block = block_number,
-                                    timeout_ms = CYCLE_TIMEOUT_MS,
-                                    "⏱️ Cycle timed out! Dropped stale task."
+                                    timeout_ms = DISCOVERY_SAFETY_TIMEOUT_MS,
+                                    "⏱️ Discovery timed out! Sockets auto-cleaned."
                                 );
                             }
                         }
                     });
-
-                    active_task = Some(handle);
                 }
             }
         }
