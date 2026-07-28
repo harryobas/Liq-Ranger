@@ -7,7 +7,7 @@ use tracing::{debug, error, info, warn};
 use crate::core::services::liquidation_engine::LiquidationEngine;
 
 /// Generous safety timeout to clean up hung RPC sockets without dropping candidate discovery prematurely
-const DISCOVERY_SAFETY_TIMEOUT_MS: u64 = 5000;
+const DISCOVERY_SAFETY_TIMEOUT_MS: u64 = 10000;
 
 pub struct LiqExecutor<M> {
     engine: LiquidationEngine,

@@ -72,7 +72,7 @@ impl LiquidationEngine {
 
                 match reader.fetch_liquidation_candidates().await {
                     Ok(candidates) => {
-                        info!(
+                        debug!(
                             protocol = reader.name(),
                             candidates = candidates.len(),
                             elapsed_ms = start.elapsed().as_millis(),

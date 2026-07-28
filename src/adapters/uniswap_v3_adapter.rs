@@ -217,7 +217,7 @@ impl<M: Middleware + 'static> DexRouteFinder for UniswapV3Adapter<M> {
         _dest_decimals: u8,
         amount: U256,
     ) -> anyhow::Result<MarketQuote> {
-        debug!(target: "liq_ranger", "Requesting swap quote for {:?} -> {:?}, amount {}", src_token, dest_token, amount);
+        debug!("Requesting swap quote for {:?} -> {:?}, amount {}", src_token, dest_token, amount);
 
         let hubs = [*WETH, *USDC, *USDT];
 
@@ -266,7 +266,7 @@ impl<M: Middleware + 'static> DexRouteFinder for UniswapV3Adapter<M> {
             }
         };
 
-        debug!(target: "liq_ranger", "Quote successfully built! Target: {:?}, Min Out: {}", self.router.address(), min_amt_out);
+        debug!( "Quote successfully built! Target: {:?}, Min Out: {}", self.router.address(), min_amt_out);
 
         Ok(MarketQuote {
             swap_target: self.router.address(),
