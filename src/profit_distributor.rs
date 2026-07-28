@@ -245,4 +245,3 @@ impl<M: Middleware + 'static> ProfitDistributor<M> {
         }
     }
 }
-

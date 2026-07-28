@@ -48,7 +48,7 @@ pub struct LiquidationJob {
     pub protocol: Protocol,
     pub min_amt_out: U256,
     pub identity: String,
-    pub seize_amount: U256
+    pub seize_amount: U256,
 }
 
 pub struct TxPayload {

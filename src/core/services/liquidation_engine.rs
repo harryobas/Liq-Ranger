@@ -63,31 +63,33 @@ impl LiquidationEngine {
         // ---------------------------------------------------------------------
         let stage_timer = Instant::now();
 
-        let fetch_futures = self.protocol_readers
-            .iter().cloned()
+        let fetch_futures = self
+            .protocol_readers
+            .iter()
+            .cloned()
             .map(|reader| async move {
-            let start = Instant::now();
+                let start = Instant::now();
 
-            match reader.fetch_liquidation_candidates().await {
-                Ok(candidates) => {
-                    info!(
-                        protocol = reader.name(),
-                        candidates = candidates.len(),
-                        elapsed_ms = start.elapsed().as_millis(),
-                        "Protocol scan complete"
-                    );
-                    candidates
+                match reader.fetch_liquidation_candidates().await {
+                    Ok(candidates) => {
+                        info!(
+                            protocol = reader.name(),
+                            candidates = candidates.len(),
+                            elapsed_ms = start.elapsed().as_millis(),
+                            "Protocol scan complete"
+                        );
+                        candidates
+                    }
+                    Err(e) => {
+                        error!(
+                            protocol = reader.name(),
+                            error = ?e,
+                            "Protocol scan failed"
+                        );
+                        Vec::new()
+                    }
                 }
-                Err(e) => {
-                    error!(
-                        protocol = reader.name(),
-                        error = ?e,
-                        "Protocol scan failed"
-                    );
-                    Vec::new()
-                }
-            }
-        });
+            });
 
         let candidates: Vec<BorrowerProfile> = join_all(fetch_futures)
             .await
@@ -430,9 +432,7 @@ async fn try_revalidate_and_simulate(
     job.swap_data = new_quote.swap_data;
 
     // 2. Fast-Path Re-Simulation
-    let gas_used = simulator
-        .simulate_liquidation(block_number, &job)
-        .await?;
+    let gas_used = simulator.simulate_liquidation(block_number, &job).await?;
 
     Ok(TxPayload { job, gas_used })
 }

@@ -34,18 +34,29 @@ impl AaveWatchList {
         })
     }
 
+    /// Primary Stage 1 Optimization:
+    /// Returns unique borrowers directly to prevent duplicate portfolio health checks.
+    pub fn unique_borrowers(&self) -> HashSet<Address> {
+        self.cache.iter().map(|entry| *entry.key()).collect()
+    }
+
     async fn persist(&self, borrower: Address) -> anyhow::Result<()> {
         let db = self.db.clone();
-        let maybe_set = self.cache.get(&borrower).map(|v| v.value().clone());
 
+        // 1. Serialize in-memory data and drop DashMap reference immediately
+        let maybe_encoded = match self.cache.get(&borrower) {
+            Some(entry) => Some(bincode::serialize(entry.value())?),
+            None => None,
+        };
+
+        // 2. Offload Sled write to blocking thread without blocking on disk flush
         tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
-            if let Some(set) = maybe_set {
-                let encoded = bincode::serialize(&set)?;
+            if let Some(encoded) = maybe_encoded {
                 db.insert(borrower.as_bytes(), encoded)?;
             } else {
                 db.remove(borrower.as_bytes())?;
             }
-            db.flush()?;
+            // Sled manages background flushes automatically; no explicit db.flush() needed on hot path
             Ok(())
         })
         .await??;
@@ -135,23 +146,27 @@ impl ProtocolWatchList for AaveWatchList {
     }
 
     fn snapshot(&self) -> Vec<String> {
+
         let mut out = Vec::with_capacity(self.cache.len());
 
         for entry in self.cache.iter() {
-            let borrower = *entry.key();
-            for reserve in entry.value().iter() {
-                // ✅ FIX: Use to_string_id() instead of Debug formatting {:?}
-                let identity = TrackerIdentity::AaveV3 {
-                    borrower,
-                    reserve: *reserve,
-                }
-                .to_string_id();
-                out.push(identity);
-            }
-        }
+        let borrower = *entry.key();
 
-        out
+        // Pick 1 representative reserve for this borrower
+        if let Some(reserve) = entry.value().iter().next() {
+            let identity = TrackerIdentity::AaveV3 {
+                borrower,
+                reserve: *reserve,
+            }
+            .to_string_id();
+            out.push(identity);
+        }
     }
+
+    out
+}
+
+
 }
 
 #[cfg(test)]
@@ -162,7 +177,6 @@ mod tests {
         Address::from_low_u64_be(n)
     }
 
-    // ✅ FIX: Use to_string_id() in test helper
     fn make_identity(borrower: Address, reserve: Address) -> String {
         TrackerIdentity::AaveV3 { borrower, reserve }.to_string_id()
     }
@@ -214,9 +228,22 @@ mod tests {
 
         let list = AaveWatchList::new(db.clone()).expect("watchlist");
         list.add(&identity).await.expect("add");
-        db.flush().expect("flush");
 
         let reloaded = AaveWatchList::new(db).expect("reload");
         assert!(reloaded.contains(borrower, reserve));
+    }
+
+    #[tokio::test]
+    async fn unique_borrowers_deduplicates() {
+        let (_dir, db) = test_db();
+        let list = AaveWatchList::new(db).expect("watchlist");
+        let borrower = addr(7);
+
+        list.add(&make_identity(borrower, addr(10))).await.unwrap();
+        list.add(&make_identity(borrower, addr(11))).await.unwrap();
+
+        let unique = list.unique_borrowers();
+        assert_eq!(unique.len(), 1);
+        assert!(unique.contains(&borrower));
     }
 }

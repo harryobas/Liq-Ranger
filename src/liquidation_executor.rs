@@ -1,14 +1,14 @@
+use ethers::providers::Middleware;
 use std::sync::Arc;
 use std::time::Duration;
-use ethers::providers::Middleware;
-use tokio::task::JoinHandle;
 use tokio::sync::{broadcast::Receiver, watch};
+use tokio::task::JoinHandle;
 use tracing::{debug, error, info, warn};
 
 use crate::core::services::liquidation_engine::LiquidationEngine;
 
 /// Maximum allowable execution time per block cycle before forced timeout
-const CYCLE_TIMEOUT_MS: u64 = 3000;
+const CYCLE_TIMEOUT_MS: u64 = 1400;
 
 pub struct LiqExecutor<M> {
     engine: LiquidationEngine,
@@ -43,7 +43,7 @@ impl<M: Middleware + 'static> LiqExecutor<M> {
 
         loop {
             tokio::select! {
-                // Graceful Shutdown: Cancel running task immediately and exit
+                // Graceful Shutdown: Abort any running task immediately and exit cleanly
                 _ = self.shutdown.changed() => {
                     info!("🛑 Liquidation executor shutting down");
                     if let Some(task) = active_task.take() {
@@ -52,7 +52,7 @@ impl<M: Middleware + 'static> LiqExecutor<M> {
                     break;
                 }
 
-                // New Block Intake
+                // Block Stream Processing
                 recv = self.receiver.recv() => {
                     let block_number = match recv {
                         Ok(b) => b,
@@ -74,6 +74,9 @@ impl<M: Middleware + 'static> LiqExecutor<M> {
 
                         Err(tokio::sync::broadcast::error::RecvError::Closed) => {
                             warn!("📴 Block channel closed");
+                            if let Some(task) = active_task.take() {
+                                task.abort();
+                            }
                             break;
                         }
                     };
@@ -84,7 +87,7 @@ impl<M: Middleware + 'static> LiqExecutor<M> {
                     }
                     last_processed_block = block_number;
 
-                    // 1. INSTANT ABORT: If a cycle from block N-1 is still running, kill it!
+                    // 1. INSTANT ABORT: Abort stale cycle from previous block if still running
                     if let Some(previous_task) = active_task.take() {
                         if !previous_task.is_finished() {
                             warn!(
@@ -97,7 +100,7 @@ impl<M: Middleware + 'static> LiqExecutor<M> {
 
                     let engine = self.engine.clone();
 
-                    // 2. Spawn the new cycle for the freshest block tip
+                    // 2. Spawn cycle execution for the newest block tip
                     let handle = tokio::spawn(async move {
                         debug!(block = block_number, "⚡ Executing liquidation cycle");
 

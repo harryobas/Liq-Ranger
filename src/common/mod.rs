@@ -1,29 +1,33 @@
 pub mod abi_bindings;
 pub mod task_manager;
 
+use std::sync::Arc;
+
 use ethers::{
     providers::{Middleware, PubsubClient},
     types::{Address, H256},
 };
+use sled::Db;
+use tokio::sync::{
+    broadcast::{Receiver, Sender},
+    mpsc, watch,
+};
 
 use crate::{
-    block_watcher::BlockWatcher,
-    config,
     constants::{self, TOKEN_DECIMAL_CACHE, TOKEN_SYMBOL_CACHE},
+    watchlist_pruner::WatchListPruner,
+    block_watcher::BlockWatcher,
+    common::{
+        abi_bindings::{
+            AaveOracle, IAaveV3Pool, IFlashLiquidator, IMorphoBlue, IQuoterV2, ISwapRouter,
+            UiPoolDataProvider, IERC20,
+        },
+    },
+    config::{self, AaveConfig},
     core::services::liquidation_engine::LiquidationEngine,
     liq_data_extractor::LiqDataExtractor,
     liquidation_executor::LiqExecutor,
     profit_distributor::ProfitDistributor,
-    watchlist_pruner::WatchListPruner,
-};
-use std::sync::Arc;
-
-use crate::{
-    adapters::anvil_simulation_sandbox::AnvilSandbox,
-    common::abi_bindings::{
-        AaveOracle, IAaveV3Pool, IFlashLiquidator, IMorphoBlue, IQuoterV2, ISwapRouter,
-        UiPoolDataProvider, IERC20,
-    },
     watchlists::{
         aave_watchlist::AaveWatchList,
         bootstrap_state::BootstrapState,
@@ -35,13 +39,6 @@ use crate::{
     },
 };
 
-use crate::config::AaveConfig;
-use tokio::sync::{
-    broadcast::{Receiver, Sender},
-    mpsc, watch,
-};
-
-use sled::Db;
 pub trait Config: Send + Sync {
     fn load() -> anyhow::Result<Self>
     where
@@ -55,6 +52,7 @@ pub enum AdminCmd {
     Prune,
     StatusCheck,
 }
+
 #[derive(Debug, Clone)]
 pub struct CoreContracts<M> {
     pub aave: IAaveV3Pool<M>,
@@ -77,10 +75,10 @@ pub async fn get_token_decimals<M: Middleware + 'static>(
     provider: Arc<M>,
 ) -> anyhow::Result<u8> {
     if let Some(dec) = TOKEN_DECIMAL_CACHE.get(&token) {
-        return Ok(dec.value().clone());
+        return Ok(*dec.value());
     }
 
-    let contract = IERC20::new(token, provider.clone());
+    let contract = IERC20::new(token, provider);
     let result = contract.decimals().call().await?;
 
     TOKEN_DECIMAL_CACHE.insert(token, result);
@@ -91,11 +89,11 @@ pub async fn get_token_symbol<M: Middleware + 'static>(
     token: Address,
     provider: Arc<M>,
 ) -> anyhow::Result<String> {
-    if let Some(dec) = TOKEN_SYMBOL_CACHE.get(&token) {
-        return Ok(dec.value().clone());
+    if let Some(symbol) = TOKEN_SYMBOL_CACHE.get(&token) {
+        return Ok(symbol.value().clone());
     }
 
-    let contract = IERC20::new(token, provider.clone());
+    let contract = IERC20::new(token, provider);
     let result = contract.symbol().call().await?;
 
     TOKEN_SYMBOL_CACHE.insert(token, result.clone());
@@ -119,7 +117,7 @@ pub fn fetch_contracts<M: Middleware + 'static>(
     let aave_oracle = AaveOracle::new(oracle_addr, client.clone());
     let ui_pool_data_provider = UiPoolDataProvider::new(ui_pool_data_addr, client.clone());
     let quoter = IQuoterV2::new(quoter_addr, client.clone());
-    let swaper = ISwapRouter::new(swaper_addr, client.clone());
+    let swaper = ISwapRouter::new(swaper_addr, client);
 
     Ok(CoreContracts {
         aave,
@@ -149,7 +147,7 @@ pub async fn has_outstanding_debt<M: Middleware + 'static>(
     let vdebt = config
         .vdebt_tokens
         .get(&reserve)
-        .ok_or_else(|| anyhow::anyhow!("missing vDebt token"))?;
+        .ok_or_else(|| anyhow::anyhow!("missing vDebt token for reserve {:?}", reserve))?;
 
     let token = IERC20::new(*vdebt, pool.client());
     let debt = token.balance_of(borrower).call().await?;
@@ -162,9 +160,9 @@ pub async fn has_outstanding_debt_morpho<M: Middleware + 'static>(
     borrower: Address,
     market: H256,
 ) -> anyhow::Result<bool> {
-    let market = market.to_fixed_bytes();
+    let market_bytes = market.to_fixed_bytes();
     let (_supply_shares, borrow_shares, _collateral) =
-        morpho.position(market, borrower).call().await?;
+        morpho.position(market_bytes, borrower).call().await?;
 
     Ok(borrow_shares != 0)
 }
@@ -173,13 +171,13 @@ pub async fn start_aave_watchlist_updater<M: Middleware + 'static>(
     watch_list: Arc<AaveWatchList>,
     pool: Arc<IAaveV3Pool<M>>,
     config: Arc<config::AaveConfig>,
-    shoutdown: watch::Receiver<bool>,
+    shutdown: watch::Receiver<bool>,
     cmd_rx: mpsc::Receiver<AdminCmd>,
 ) -> anyhow::Result<()> {
-    let mut aave_updater = AaveWatchListUpdater::new(watch_list, pool, config, shoutdown, cmd_rx);
+    let mut aave_updater = AaveWatchListUpdater::new(watch_list, pool, config, shutdown, cmd_rx);
     task_manager::spawn_named_and_register("aave_watchlist_updater", async move {
         if let Err(e) = aave_updater.start().await {
-            tracing::error!("aave watchlist updater failed: {:?}", e);
+            tracing::error!("❌ Aave watchlist updater failed: {:?}", e);
         }
     })
     .await;
@@ -197,13 +195,14 @@ pub async fn start_morpho_watchlist_updater<M: Middleware + 'static>(
     let morpho_updater = MorphoWatchListUpdater::new(list, morpho, config, shutdown, cmd_rx);
     task_manager::spawn_named_and_register("morpho_watchlist_updater", async move {
         if let Err(e) = morpho_updater.start().await {
-            tracing::error!("morpho watchlist updater failed: {:?}", e);
+            tracing::error!("❌ Morpho watchlist updater failed: {:?}", e);
         }
     })
     .await;
 
     Ok(())
 }
+
 pub async fn start_block_watcher<M>(
     client: Arc<M>,
     tx: Sender<u64>,
@@ -284,9 +283,9 @@ pub async fn start_liq_data_extractor<M: Middleware + 'static>(
     provider: Arc<M>,
 ) -> anyhow::Result<()> {
     let data_extractor = LiqDataExtractor::new(flash_liquidator, db_pool, shutdown, provider);
-    task_manager::spawn_named_and_register("liq_data_extracto", async move {
+    task_manager::spawn_named_and_register("liq_data_extractor", async move {
         if let Err(e) = data_extractor.start().await {
-            tracing::error!("❌ liq data extractor task failed: {:?}", e);
+            tracing::error!("❌ Liq data extractor task failed: {:?}", e);
         }
     })
     .await;

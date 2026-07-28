@@ -3,6 +3,7 @@ use ethers::{
     providers::Middleware,
     types::{Address, U256},
 };
+use futures_util::future::join_all;
 use std::sync::Arc;
 
 use crate::common::{
@@ -70,7 +71,8 @@ pub async fn liquidation_bonus_bps<M: Middleware + 'static>(
 
     ensure!(
         (10_000..=20_000).contains(&raw_bonus),
-        "invalid liquidation bonus bounds"
+        "invalid liquidation bonus bounds: {}",
+        raw_bonus
     );
 
     Ok(raw_bonus)
@@ -86,6 +88,7 @@ pub async fn compute_debt_to_cover<M: Middleware + 'static>(
         .balance_of(borrower)
         .call()
         .await?;
+
     if debt.is_zero() {
         return Ok(U256::zero());
     }
@@ -104,10 +107,14 @@ pub async fn estimate_seizable_collateral<M: Middleware + 'static>(
     if debt_to_cover.is_zero() {
         return Ok(U256::zero());
     }
-    let coll_price = oracle.get_asset_price(collateral_asset);
-    let debt_price = oracle.get_asset_price(debt_asset);
 
-    let (collateral_price, debt_price) = tokio::try_join!(coll_price.call(), debt_price.call())?;
+    let coll_price_fut = oracle.get_asset_price(collateral_asset);
+    let debt_price_fut = oracle.get_asset_price(debt_asset);
+
+    let (collateral_price, debt_price) = tokio::try_join!(
+        coll_price_fut.call(),
+        debt_price_fut.call()
+    )?;
 
     let (coll_decimals, debt_decimals) = tokio::try_join!(
         get_token_decimals(collateral_asset, client.clone()),
@@ -133,56 +140,68 @@ pub async fn select_collateral_candidate<M: Middleware + 'static>(
     oracle: &AaveOracle<M>,
     client: Arc<M>,
 ) -> Result<CollateralCandidate> {
+    let futures = collaterals.iter().map(|reserve| {
+        let asset = reserve.underlying_asset;
+        let client = client.clone();
+
+        async move {
+            let bonus = liquidation_bonus_bps(asset, pool).await?;
+            let atoken = resolve_atoken(pool, asset).await?;
+
+            let balance = IERC20::new(atoken, client.clone())
+                .balance_of(borrower)
+                .call()
+                .await?;
+
+            let seize = estimate_seizable_collateral(
+                debt_to_cover,
+                asset,
+                debt_asset,
+                bonus,
+                oracle,
+                client.clone(),
+            )
+            .await?
+            .min(balance);
+
+            if seize.is_zero() {
+                return Ok(None);
+            }
+
+            let price = oracle.get_asset_price(asset).call().await?;
+            let decimals = get_token_decimals(asset, client.clone()).await?;
+
+            let usd_value = seize
+                .checked_mul(price)
+                .ok_or_else(|| anyhow!("overflow: collateral amount * price"))?
+                / U256::exp10(decimals as usize);
+
+            Ok(Some(CollateralCandidate {
+                asset,
+                liquidation_bonus_bps: bonus,
+                seize_amount: seize,
+                usd_value,
+            }))
+        }
+    });
+
+    let results:Vec<Result<Option<CollateralCandidate>>> = join_all(futures).await;
     let mut candidates = Vec::new();
 
-    for &reserve in collaterals {
-        let asset = reserve.underlying_asset;
-        let bonus = liquidation_bonus_bps(asset, pool).await?;
-        let atoken = resolve_atoken(pool, asset).await?;
-
-        let balance = IERC20::new(atoken, client.clone())
-            .balance_of(borrower)
-            .call()
-            .await?;
-
-        let seize = estimate_seizable_collateral(
-            debt_to_cover,
-            asset,
-            debt_asset,
-            bonus,
-            oracle,
-            client.clone(),
-        )
-        .await?
-        .min(balance);
-
-        if seize.is_zero() {
-            continue;
+    for res in results {
+        match res {
+            Ok(Some(candidate)) => candidates.push(candidate),
+            Ok(None) => continue,
+            Err(e) => tracing::debug!("Error evaluating collateral candidate: {:?}", e),
         }
-
-        let price = oracle.get_asset_price(asset).call().await?;
-        let decimals = get_token_decimals(asset, client.clone()).await?;
-
-        let usd_value = seize
-            .checked_mul(price)
-            .ok_or_else(|| anyhow!("overflow: collateral amount * price"))?
-            / U256::exp10(decimals as usize);
-
-        candidates.push(CollateralCandidate {
-            asset,
-            liquidation_bonus_bps: bonus,
-            seize_amount: seize,
-            usd_value,
-        });
     }
 
     candidates.sort_by(|a, b| b.usd_value.cmp(&a.usd_value));
 
-    if candidates.is_empty() {
-        return Err(anyhow!("no viable collateral found for borrower"));
-    }
-
-    Ok(candidates[0].clone())
+    candidates
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("no viable collateral candidate found for borrower {:?}", borrower))
 }
 
 async fn resolve_atoken<M: Middleware + 'static>(

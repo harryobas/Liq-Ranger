@@ -6,13 +6,20 @@ use crate::common::get_token_decimals;
 use crate::config::MorphoConfig;
 use crate::core::ports::{LendingProtocolReader, ProtocolWatchList};
 use crate::core::types::{
-    BorrowerProfile, HealthCheck, LiquidationMode, Market, Position, Protocol, TrackerIdentity,
+    BorrowerProfile,
+    LiquidationMode,
+    Market,
+    Position,
+    Protocol,
+    TrackerIdentity,
+    HealthCheck
 };
 use ethers::{
     providers::Middleware,
     types::{Address, H256, U256},
 };
 use futures_util::stream::{self, StreamExt};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 pub struct MorphoProtocolAdapter<M: Middleware + 'static> {
@@ -37,6 +44,8 @@ impl<M: Middleware + 'static> MorphoProtocolAdapter<M> {
         }
     }
 
+    /// Evaluates a single Morpho Blue position.
+    /// Uses concurrent RPC fetches for position, market data, and oracle prices to minimize roundtrip latency.
     async fn evaluate_target(
         identity: String,
         morpho: IMorphoBlue<M>,
@@ -48,37 +57,34 @@ impl<M: Middleware + 'static> MorphoProtocolAdapter<M> {
                 market_id,
                 borrower,
             } => (market_id, borrower),
-            _ => return None,
+            _ => {
+                tracing::warn!("Failed to parse Morpho TrackerIdentity: {}", identity);
+                return None;
+            }
         };
-
-        tracing::debug!(
-            "Analyzing borrower: {:?} in market: {:?}",
-            borrower,
-            H256::from(market_id)
-        );
 
         let market_bytes = market_id.to_fixed_bytes();
 
-        // 1. Fetch Borrower Position
-        let (_, borrow_shares, collateral) = morpho
-            .position(market_bytes, borrower)
-            .call()
-            .await
-            .ok()?;
+        // 1. Fetch Position and Market Data concurrently
+        let pos_fut = morpho.position(market_bytes, borrower);
+        let market_fut = morpho.market(market_bytes);
+        let params_fut = morpho.id_to_market_params(market_bytes);
 
+        let (pos_res, market_res, params_res) =
+            tokio::try_join!(pos_fut.call(), market_fut.call(), params_fut.call()).ok()?;
+
+        let (_, borrow_shares, collateral) = pos_res;
         if borrow_shares == 0 {
+            tracing::debug!("Borrower {:?} in market {:?} has zero borrow shares", borrower, H256::from(market_id));
             return None;
         }
 
-        // 2. Fetch Market State & Market Parameters
-        let (_, _, total_borrow_assets, total_borrow_shares, _, _) =
-            morpho.market(market_bytes).call().await.ok()?;
+        let (_, _, total_borrow_assets, total_borrow_shares, _, _) = market_res;
+        let (loan_token, collateral_token, oracle_addr, _, lltv) = params_res;
 
-        let (loan_token, collateral_token, oracle_addr, _, lltv) = morpho
-            .id_to_market_params(market_bytes)
-            .call()
-            .await
-            .ok()?;
+        // 2. Fetch Oracle Price
+        let oracle_contract = IOracle::new(oracle_addr, client.clone());
+        let price = oracle_contract.price().call().await.ok()?;
 
         let market = Market {
             total_borrow_assets: total_borrow_assets.into(),
@@ -93,31 +99,32 @@ impl<M: Middleware + 'static> MorphoProtocolAdapter<M> {
             lltv,
         };
 
-        // 3. Fetch Price from Oracle
-        let oracle_contract = IOracle::new(oracle_addr, client.clone());
-        let price = oracle_contract.price().call().await.ok()?;
-
         let position = Position {
             borrow_shares: borrow_shares.into(),
             collateral: collateral.into(),
         };
 
-        // 4. Health Factor Evaluation
+        // 3. Fast-Path Exit: Check Health Factor
         if position.is_healthy(&market, &market_params.lltv, &price) {
             tracing::debug!(
-                "Borrower: {:?} is healthy in market: {:?}",
+                "Borrower {:?} is healthy in market {:?}",
                 borrower,
                 H256::from(market_id)
             );
             return None;
         }
 
+        tracing::warn!(
+            "🚨 Unhealthy Morpho position detected: borrower {:?} in market {:?}",
+            borrower,
+            H256::from(market_id)
+        );
+
         let total_assets = U256::from(total_borrow_assets);
         let total_shares = U256::from(total_borrow_shares);
         let borrow_shares_u256 = U256::from(borrow_shares);
 
         let debt_assets = to_assets_down(borrow_shares_u256, total_assets, total_shares);
-
         if debt_assets.is_zero() {
             return None;
         }
@@ -131,7 +138,7 @@ impl<M: Middleware + 'static> MorphoProtocolAdapter<M> {
 
         let available_collateral = U256::from(collateral);
 
-        // 5. Liquidation Mode Determination
+        // 4. Determine Liquidation Mode (Full Repay vs Bad Debt Seize)
         let mode = if available_collateral >= required_collateral {
             let seized_for_swap = seized_assets_from_repaid_shares(
                 borrow_shares_u256,
@@ -143,6 +150,7 @@ impl<M: Middleware + 'static> MorphoProtocolAdapter<M> {
             );
 
             if seized_for_swap.is_zero() {
+                tracing::debug!("Zero expected seized assets for borrower {:?}", borrower);
                 return None;
             }
 
@@ -173,13 +181,12 @@ impl<M: Middleware + 'static> MorphoProtocolAdapter<M> {
             LiquidationMode::SeizeCollateral { seized_assets } => (U256::zero(), *seized_assets),
         };
 
-        // 6. Decimals Fetching with Resilient Fallbacks
-        let src_decimals = get_token_decimals(collateral_token, client.clone())
-            .await
-            .unwrap_or(18);
-        let dest_decimals = get_token_decimals(loan_token, client.clone())
-            .await
-            .unwrap_or(18);
+        // 5. Fetch Decimals Concurrently
+        let (src_decimals, dest_decimals) = tokio::try_join!(
+            get_token_decimals(collateral_token, client.clone()),
+            get_token_decimals(loan_token, client.clone())
+        )
+        .ok()?;
 
         Some(BorrowerProfile {
             address: borrower,
@@ -203,14 +210,18 @@ impl<M: Middleware + 'static> LendingProtocolReader for MorphoProtocolAdapter<M>
     async fn fetch_liquidation_candidates(&self) -> anyhow::Result<Vec<BorrowerProfile>> {
         let tracked_identities = self.watchlist.snapshot();
         if tracked_identities.is_empty() {
+            tracing::info!("Morpho Liquidator: Watchlist is empty");
             return Ok(Vec::new());
         }
+
+        // Deduplicate identities before processing RPC queries
+        let unique_identities: HashSet<String> = tracked_identities.into_iter().collect();
 
         let morpho = self.morpho.clone();
         let client = self.client.clone();
         let config = self.config.clone();
 
-        let candidates = stream::iter(tracked_identities)
+        let candidates = stream::iter(unique_identities)
             .map(move |identity| {
                 Self::evaluate_target(identity, morpho.clone(), client.clone(), config.clone())
             })
@@ -227,9 +238,11 @@ impl<M: Middleware + 'static> LendingProtocolReader for MorphoProtocolAdapter<M>
     }
 
     async fn refresh_borrower(&self, identity: &str) -> anyhow::Result<BorrowerProfile> {
-        // Fast-path: Rapidly check if the borrow position was already cleared/repaid
-        if let Ok(TrackerIdentity::MorphoBlue { market_id, borrower }) =
-            identity.parse::<TrackerIdentity>()
+        // Rapidly verify position state
+        if let Ok(TrackerIdentity::MorphoBlue {
+            market_id,
+            borrower,
+        }) = identity.parse::<TrackerIdentity>()
         {
             let (_, borrow_shares, _) = self
                 .morpho
@@ -250,6 +263,8 @@ impl<M: Middleware + 'static> LendingProtocolReader for MorphoProtocolAdapter<M>
             self.config.clone(),
         )
         .await
-        .ok_or_else(|| anyhow::anyhow!("Position no longer liquidatable for identity: {}", identity))
+        .ok_or_else(|| {
+            anyhow::anyhow!("Position no longer liquidatable for identity: {}", identity)
+        })
     }
 }

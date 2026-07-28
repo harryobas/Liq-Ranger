@@ -63,7 +63,10 @@ where
             return Ok(snapshot.clone());
         }
 
-        debug!(block = block_number, "Building new REVM block snapshot from RPC");
+        debug!(
+            block = block_number,
+            "Building new REVM block snapshot from RPC"
+        );
 
         let block = self
             .provider
@@ -151,7 +154,10 @@ where
         block_number: u64,
         job: &LiquidationJob,
     ) -> anyhow::Result<u64> {
-        debug!(block = block_number, "Starting REVM simulation for liquidation job");
+        debug!(
+            block = block_number,
+            "Starting REVM simulation for liquidation job"
+        );
 
         let snapshot = self
             .build_snapshot(
@@ -179,15 +185,14 @@ where
         let engine = self.engine.clone();
 
         // Execute REVM execution in spawn_blocking pool
-        let sim_result = tokio::task::spawn_blocking(move || engine.simulate(
-            &snapshot,
-            sim_tx
-            ))
+        let sim_result = tokio::task::spawn_blocking(move || engine.simulate(&snapshot, sim_tx))
             .await
             .map_err(|e| anyhow::anyhow!("Blocking task spawn failed: {:?}", e))??;
 
         if !sim_result.success {
-            let reason = sim_result.revert_reason.unwrap_or_else(|| "Unknown revert".to_string());
+            let reason = sim_result
+                .revert_reason
+                .unwrap_or_else(|| "Unknown revert".to_string());
             debug!(
                 block = block_number,
                 borrower = %job.borrower,
