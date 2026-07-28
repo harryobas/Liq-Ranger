@@ -8,7 +8,7 @@ use tracing::{debug, error, info, warn};
 use crate::core::services::liquidation_engine::LiquidationEngine;
 
 /// Maximum allowable execution time per block cycle before forced timeout
-const CYCLE_TIMEOUT_MS: u64 = 1400;
+const CYCLE_TIMEOUT_MS: u64 = 3000;
 
 pub struct LiqExecutor<M> {
     engine: LiquidationEngine,
