@@ -99,14 +99,14 @@ impl LiquidationEngine {
 
         stats.candidates.store(candidates.len(), Ordering::Relaxed);
 
-        info!(
+        debug!(
             total_candidates = candidates.len(),
             elapsed_ms = stage_timer.elapsed().as_millis(),
             "Candidate discovery complete"
         );
 
         if candidates.is_empty() {
-            info!(
+            debug!(
                 block = block_number,
                 candidates = 0,
                 quoted = 0,
@@ -149,7 +149,7 @@ impl LiquidationEngine {
                                 || refreshed.seize_amount != job.seize_amount;
 
                             if state_changed {
-                                info!(
+                                debug!(
                                     borrower = %job.borrower,
                                     old_debt = %job.debt_to_cover,
                                     new_debt = %refreshed.debt_to_cover,
@@ -199,7 +199,7 @@ impl LiquidationEngine {
                 // --- Broadcast Transaction ---
                 tx_stats.submitted.fetch_add(1, Ordering::Relaxed);
 
-                info!(
+                debug!(
                     borrower = %payload.job.borrower,
                     protocol = ?payload.job.protocol,
                     gas_limit = payload.gas_used,
@@ -213,7 +213,7 @@ impl LiquidationEngine {
                 {
                     Ok(_) => {
                         tx_stats.confirmed.fetch_add(1, Ordering::Relaxed);
-                        info!(borrower = %payload.job.borrower, "Liquidation confirmed");
+                        debug!(borrower = %payload.job.borrower, "Liquidation confirmed");
                     }
                     Err(e) => {
                         error!(borrower = %payload.job.borrower, error = ?e, "Broadcasting failed");
@@ -233,7 +233,7 @@ impl LiquidationEngine {
                 let stats = Arc::clone(&stats);
 
                 async move {
-                    info!(
+                    debug!(
                         borrower = %borrower.address,
                         protocol = ?borrower.protocol,
                         debt = %borrower.debt_to_cover,
@@ -290,7 +290,7 @@ impl LiquidationEngine {
                         stats.unprofitable.fetch_add(1, Ordering::Relaxed);
                         let shortfall = borrower.debt_to_cover.saturating_sub(quote.min_amt_out);
 
-                        info!(
+                        debug!(
                             borrower = %borrower.address,
                             debt = %borrower.debt_to_cover,
                             quote = %quote.min_amt_out,
@@ -321,7 +321,7 @@ impl LiquidationEngine {
                     // Step C: EVM Simulation
                     stats.simulated.fetch_add(1, Ordering::Relaxed);
 
-                    info!(
+                    debug!(
                         borrower = %borrower.address,
                         protocol = protocol_name(borrower.protocol),
                         "Starting EVM simulation"
@@ -352,7 +352,7 @@ impl LiquidationEngine {
                     // Step D: Queue for Dispatch
                     stats.queued.fetch_add(1, Ordering::Relaxed);
 
-                    info!(
+                    debug!(
                         borrower = %borrower.address,
                         protocol = ?borrower.protocol,
                         gas = gas_used,

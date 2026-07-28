@@ -5,6 +5,7 @@ use ethers::{
 use futures_util::stream::{self, StreamExt};
 use moka::future::Cache;
 use std::time::Duration;
+use tracing::{debug, error, trace, warn};
 
 use crate::{
     common::abi_bindings::{
@@ -20,7 +21,6 @@ use crate::{
 pub struct CacheKey {
     pub src_token: Address,
     pub dest_token: Address,
-    /// Groups trade sizes by power-of-2 bit length to isolate shallow vs deep liquidity pools
     pub amount_bucket: u32,
 }
 
@@ -41,12 +41,11 @@ pub enum RouteTopology {
     MultiHop { path: Bytes },
 }
 
-const CONCURRENCY_LIMIT: usize = 8;
+const CONCURRENCY_LIMIT: usize = 4;
 
 pub struct UniswapV3Adapter<M: Middleware> {
     pub quoter: IQuoterV2<M>,
     pub router: ISwapRouter<M>,
-    /// Thread-safe moka cache keyed by amount-aware token pairs (3-second TTL)
     route_cache: Cache<CacheKey, RouteTopology>,
 }
 
@@ -64,7 +63,6 @@ impl<M: Middleware> UniswapV3Adapter<M> {
         }
     }
 
-    /// Primary route evaluation logic leveraging the moka TTL cache
     async fn evaluate_route(
         &self,
         src_token: Address,
@@ -74,8 +72,9 @@ impl<M: Middleware> UniswapV3Adapter<M> {
     ) -> (U256, RouteTopology) {
         let cache_key = CacheKey::new(src_token, dest_token, amount);
 
-        // 1. CACHE HIT: Re-quote only the known optimal path (1 RPC call)
+        // 1. CACHE HIT
         if let Some(topology) = self.route_cache.get(&cache_key).await {
+            debug!("Cache hit for pair {:?} -> {:?}", src_token, dest_token);
             match &topology {
                 RouteTopology::SingleHop { fee } => {
                     let out = self
@@ -86,7 +85,6 @@ impl<M: Middleware> UniswapV3Adapter<M> {
                     }
                 }
                 RouteTopology::MultiHop { path } => {
-                    // quote_exact_input takes (path: Bytes, amountIn: U256) directly
                     if let Ok((out, _, _, _)) = self
                         .quoter
                         .quote_exact_input(path.clone(), amount)
@@ -103,12 +101,11 @@ impl<M: Middleware> UniswapV3Adapter<M> {
 
         self.route_cache.invalidate(&cache_key).await;
 
-        // 2. CACHE MISS / POOL DRY: Perform parallel route discovery (~36 RPC calls)
-        let single_hop_fut = self.find_best_single_hop(src_token, dest_token, amount);
-        let multi_hop_fut = self.find_best_multi_hop(src_token, dest_token, amount, hubs);
+        // 2. CACHE MISS: Sequentially query single vs multi-hop to prevent RPC connection starvation
+        debug!("Fetching fresh quotes for {:?} -> {:?}, amount: {}", src_token, dest_token, amount);
 
-        let ((single_out, single_fee), (multi_out, packed_path)) =
-            futures_util::join!(single_hop_fut, multi_hop_fut);
+        let (single_out, single_fee) = self.find_best_single_hop(src_token, dest_token, amount).await;
+        let (multi_out, packed_path) = self.find_best_multi_hop(src_token, dest_token, amount, hubs).await;
 
         let (best_out, best_topology) = if multi_out > single_out {
             (multi_out, RouteTopology::MultiHop { path: packed_path })
@@ -116,17 +113,16 @@ impl<M: Middleware> UniswapV3Adapter<M> {
             (single_out, RouteTopology::SingleHop { fee: single_fee })
         };
 
-        // 3. STORE IN CACHE if a valid path was discovered
         if !best_out.is_zero() {
-            self.route_cache
-                .insert(cache_key, best_topology.clone())
-                .await;
+            debug!(target: "liq_ranger", "Discovered optimal route out: {} for {:?} -> {:?}", best_out, src_token, dest_token);
+            self.route_cache.insert(cache_key, best_topology.clone()).await;
+        } else {
+            warn!(target: "liq_ranger", "No valid Uniswap V3 path found for {:?} -> {:?}", src_token, dest_token);
         }
 
         (best_out, best_topology)
     }
 
-    /// Evaluates single-hop quote for a specific fee tier
     async fn quote_single_hop(
         &self,
         token_in: Address,
@@ -142,15 +138,15 @@ impl<M: Middleware> UniswapV3Adapter<M> {
             sqrt_price_limit_x96: U256::zero(),
         };
 
-        self.quoter
-            .quote_exact_input_single(params)
-            .call()
-            .await
-            .map(|(amount_out, _, _, _)| amount_out)
-            .unwrap_or_else(|_| U256::zero())
+        match self.quoter.quote_exact_input_single(params).call().await {
+            Ok((amount_out, _, _, _)) => amount_out,
+            Err(e) => {
+                trace!(target: "liq_ranger", "Single hop failed for fee {}: {:?}", fee, e);
+                U256::zero()
+            }
+        }
     }
 
-    /// Evaluates single-hop quotes across standard fee tiers (100, 500, 3000, 10000) concurrently
     async fn find_best_single_hop(
         &self,
         token_in: Address,
@@ -159,19 +155,9 @@ impl<M: Middleware> UniswapV3Adapter<M> {
     ) -> (U256, u32) {
         let fee_tiers = [100u32, 500u32, 3000u32, 10000u32];
 
-        let results = stream::iter(fee_tiers.into_iter().map(|fee| {
-            let quoter = self.quoter.clone();
-            async move {
-                let params = QuoteExactInputSingleParams {
-                    token_in,
-                    token_out,
-                    amount_in,
-                    fee,
-                    sqrt_price_limit_x96: U256::zero(),
-                };
-                let res = quoter.quote_exact_input_single(params).call().await;
-                (fee, res)
-            }
+        let results = stream::iter(fee_tiers.into_iter().map(|fee| async move {
+            let out = self.quote_single_hop(token_in, token_out, fee, amount_in).await;
+            (fee, out)
         }))
         .buffer_unordered(CONCURRENCY_LIMIT)
         .collect::<Vec<_>>()
@@ -179,15 +165,11 @@ impl<M: Middleware> UniswapV3Adapter<M> {
 
         results
             .into_iter()
-            .filter_map(|(fee, res)| match res {
-                Ok((amount_out, _, _, _)) if !amount_out.is_zero() => Some((amount_out, fee)),
-                _ => None,
-            })
-            .max_by_key(|(amount_out, _)| *amount_out)
+            .max_by_key(|(_, amount_out)| *amount_out)
+            .map(|(fee, amount_out)| (amount_out, fee))
             .unwrap_or((U256::zero(), 0))
     }
 
-    /// Evaluates 2-hop routes across intermediate liquidity hubs concurrently
     pub async fn find_best_multi_hop(
         &self,
         token_in: Address,
@@ -201,42 +183,27 @@ impl<M: Middleware> UniswapV3Adapter<M> {
             .filter(|&intermediate| intermediate != token_in && intermediate != token_out)
             .collect();
 
-        if valid_intermediates.is_empty() {
-            return (U256::zero(), Bytes::default());
+        let mut best_out = U256::zero();
+        let mut best_path = Bytes::default();
+
+        for intermediate in valid_intermediates {
+            let (out_leg1, fee1) = self.find_best_single_hop(token_in, intermediate, amount_in).await;
+            if out_leg1.is_zero() {
+                continue;
+            }
+
+            let (out_leg2, fee2) = self.find_best_single_hop(intermediate, token_out, out_leg1).await;
+            if out_leg2.is_zero() {
+                continue;
+            }
+
+            if out_leg2 > best_out {
+                best_out = out_leg2;
+                best_path = encode_v3_path(&[token_in, intermediate, token_out], &[fee1, fee2]);
+            }
         }
 
-        let results = stream::iter(valid_intermediates.into_iter().map(
-            |intermediate| async move {
-                let (out_leg1, fee1) = self
-                    .find_best_single_hop(token_in, intermediate, amount_in)
-                    .await;
-
-                if out_leg1.is_zero() {
-                    return (U256::zero(), Bytes::default());
-                }
-
-                let (out_leg2, fee2) = self
-                    .find_best_single_hop(intermediate, token_out, out_leg1)
-                    .await;
-
-                if out_leg2.is_zero() {
-                    return (U256::zero(), Bytes::default());
-                }
-
-                let route_tokens = [token_in, intermediate, token_out];
-                let fees = [fee1, fee2];
-
-                (out_leg2, encode_v3_path(&route_tokens, &fees))
-            },
-        ))
-        .buffer_unordered(CONCURRENCY_LIMIT)
-        .collect::<Vec<_>>()
-        .await;
-
-        results
-            .into_iter()
-            .max_by_key(|(amount_out, _)| *amount_out)
-            .unwrap_or((U256::zero(), Bytes::default()))
+        (best_out, best_path)
     }
 }
 
@@ -250,6 +217,8 @@ impl<M: Middleware + 'static> DexRouteFinder for UniswapV3Adapter<M> {
         _dest_decimals: u8,
         amount: U256,
     ) -> anyhow::Result<MarketQuote> {
+        debug!(target: "liq_ranger", "Requesting swap quote for {:?} -> {:?}, amount {}", src_token, dest_token, amount);
+
         let hubs = [*WETH, *USDC, *USDT];
 
         let (expected_out, topology) = self
@@ -257,6 +226,7 @@ impl<M: Middleware + 'static> DexRouteFinder for UniswapV3Adapter<M> {
             .await;
 
         if expected_out.is_zero() {
+            error!(target: "liq_ranger", "Failed to find Uniswap V3 quote for {:?} -> {:?}", src_token, dest_token);
             return Err(anyhow::anyhow!(
                 "No Uniswap V3 liquidity found for pair {:?} -> {:?}",
                 src_token,
@@ -295,6 +265,8 @@ impl<M: Middleware + 'static> DexRouteFinder for UniswapV3Adapter<M> {
                     .ok_or_else(|| anyhow::anyhow!("Failed to encode exactInputSingle calldata"))?
             }
         };
+
+        debug!(target: "liq_ranger", "Quote successfully built! Target: {:?}, Min Out: {}", self.router.address(), min_amt_out);
 
         Ok(MarketQuote {
             swap_target: self.router.address(),
