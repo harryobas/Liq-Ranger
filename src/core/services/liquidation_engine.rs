@@ -411,7 +411,7 @@ async fn try_revalidate_and_simulate(
     simulator: &dyn EvmSimulator,
     refreshed: BorrowerProfile,
     mut job: LiquidationJob,
-    block_number: u64,
+    _block_number: u64,
 ) -> anyhow::Result<TxPayload> {
     // 1. Fast-Path Re-Quote
     let new_quote = dex_finder
@@ -439,7 +439,7 @@ async fn try_revalidate_and_simulate(
     job.swap_data = new_quote.swap_data;
 
     // 2. Fast-Path Re-Simulation
-    let gas_used = simulator.simulate_liquidation(block_number, &job).await?;
+    let gas_used = simulator.simulate_liquidation(0, &job).await?;
 
     Ok(TxPayload { job, gas_used })
 }

@@ -3,14 +3,13 @@ use ethers::{
     types::{Address, Bytes as eBytes, U256},
 };
 use revm::{
-    db::CacheDB,
-    primitives::{Bytes, ExecutionResult},
-    EVM,
+    EVM, db::CacheDB, interpreter::gas::constants, primitives::{Bytes, ExecutionResult},
 };
 use std::collections::HashMap;
 
 use super::snapshot::{build_block_env, build_tx_env, BlockSnapshot};
 use crate::core::types::SimulationResult;
+
 
 #[derive(Clone, Debug)]
 pub struct SimulationTx {
@@ -48,8 +47,9 @@ impl SimulationEngine {
         M: Middleware + Send + Sync + 'static,
         <M as Middleware>::Error: 'static,
     {
-        // Zero-copy local overlay reading from the shared CacheDB base
-        let mut local_db = CacheDB::new((*snapshot.db).clone());
+        // Issue #1 Fix: Zero-allocation local overlay referencing snapshot.db directly
+        // snapshot.db is Arc<CacheDB<SharedEthersDB<M>>>
+        let mut local_db = CacheDB::new(snapshot.db.as_ref());
 
         let mut evm = EVM::new();
         evm.database(&mut local_db);
@@ -97,7 +97,7 @@ impl SimulationEngine {
         let data = &bytes[4..];
 
         match selector {
-            // Standard Error(string) selector
+            // Standard Error(string) selector: 0x08c379a0
             [0x08, 0xc3, 0x79, 0xa0] => {
                 if let Ok(decoded) = ethers::abi::decode(&[ethers::abi::ParamType::String], data) {
                     if let Some(msg) = decoded.first() {
@@ -105,7 +105,7 @@ impl SimulationEngine {
                     }
                 }
             }
-            // Standard Panic(uint256) selector
+            // Standard Panic(uint256) selector: 0x4e487b71
             [0x4e, 0x48, 0x7b, 0x71] => {
                 if let Ok(decoded) = ethers::abi::decode(&[ethers::abi::ParamType::Uint(256)], data)
                 {
