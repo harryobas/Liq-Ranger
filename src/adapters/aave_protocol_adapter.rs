@@ -43,6 +43,8 @@ impl<M: Middleware + 'static> AaveProtocolAdapter<M> {
 
     /// Evaluates a single unique borrower.
     /// Exits after 1 RPC call if HF >= 1.0. Dynamically discovers actual debt reserves if liquidatable.
+    /// Evaluates a single unique borrower.
+    /// Exits after 1 RPC call if HF >= 1.0. Dynamically discovers actual debt reserves if liquidatable.
     async fn evaluate_borrower(
         borrower: ethers::types::Address,
         target_reserve: Option<ethers::types::Address>,
@@ -55,7 +57,13 @@ impl<M: Middleware + 'static> AaveProtocolAdapter<M> {
         tracing::debug!("Analyzing portfolio for borrower {:?}", borrower);
 
         // 1. Account-level Health Factor Check (Fast Path Exit)
-        let (_, _, _, _, _, hf) = pool.get_user_account_data(borrower).call().await.ok()?;
+        let (_, _, _, _, _, hf) = match pool.get_user_account_data(borrower).call().await {
+            Ok(data) => data,
+            Err(e) => {
+                tracing::error!(?borrower, error = ?e, "Failed to fetch user account data");
+                return None;
+            }
+        };
 
         if hf >= U256::exp10(18) {
             tracing::debug!("Borrower {:?} is healthy with HF: {}", borrower, hf);
@@ -65,12 +73,17 @@ impl<M: Middleware + 'static> AaveProtocolAdapter<M> {
         tracing::warn!("🚨 Unhealthy borrower detected: {:?} (HF: {})", borrower, hf);
 
         // 2. Fetch User Reserves on-chain to discover actual Debt and Collateral positions
-        let (user_reserves, _) = ui_pool_data_provider
+        let (user_reserves, _) = match ui_pool_data_provider
             .get_user_reserves_data(config.pool_address_provider, borrower)
             .call()
             .await
-            .map_err(|e| tracing::error!(?borrower, "UiPoolDataProvider call failed: {:?}", e))
-            .ok()?;
+        {
+            Ok(res) => res,
+            Err(e) => {
+                tracing::error!(?borrower, error = ?e, "UiPoolDataProvider call failed");
+                return None;
+            }
+        };
 
         let collateral_positions: Vec<_> = user_reserves
             .iter()
@@ -90,38 +103,59 @@ impl<M: Middleware + 'static> AaveProtocolAdapter<M> {
             None => {
                 let mut found_debt = None;
                 for user_res in &user_reserves {
-                    if !user_res.scaled_variable_debt.is_zero()
-                    {
+                    if !user_res.scaled_variable_debt.is_zero() {
                         let candidate_reserve = user_res.underlying_asset;
-                        if has_outstanding_debt(borrower, candidate_reserve, &pool, &config)
-                            .await
-                            .unwrap_or(false)
-                        {
-                            found_debt = Some(candidate_reserve);
-                            break;
+                        match has_outstanding_debt(borrower, candidate_reserve, &pool, &config).await {
+                            Ok(true) => {
+                                found_debt = Some(candidate_reserve);
+                                break;
+                            }
+                            Ok(false) => continue,
+                            Err(e) => {
+                                tracing::error!(?borrower, ?candidate_reserve, error = ?e, "Failed checking outstanding debt");
+                            }
                         }
                     }
                 }
-                found_debt?
+                match found_debt {
+                    Some(res) => res,
+                    None => {
+                        tracing::warn!(?borrower, "No variable debt reserve with outstanding debt found");
+                        return None;
+                    }
+                }
             }
         };
 
-        let v_debt = *config
-            .vdebt_tokens
-            .get(&debt_reserve)
-            .ok_or_else(|| anyhow::anyhow!("Missing vDebt mapping for reserve {:?}", debt_reserve))
-            .ok()?;
+        // 🚨 PREVIOUS SILENT FAILURE POINT 1: Missing vDebt Mapping
+        let v_debt = match config.vdebt_tokens.get(&debt_reserve) {
+            Some(v) => *v,
+            None => {
+                tracing::error!(
+                    ?borrower,
+                    ?debt_reserve,
+                    "CRITICAL: Missing vDebt token mapping in AaveConfig for reserve!"
+                );
+                return None;
+            }
+        };
 
-        let debt_to_cover = compute_debt_to_cover(borrower, v_debt, hf, client.clone())
-            .await
-            .ok()?;
+        // 🚨 PREVIOUS SILENT FAILURE POINT 2: compute_debt_to_cover
+        let debt_to_cover = match compute_debt_to_cover(borrower, v_debt, hf, client.clone()).await {
+            Ok(debt) => debt,
+            Err(e) => {
+                tracing::error!(?borrower, error = ?e, "Failed computing debt to cover");
+                return None;
+            }
+        };
 
         if debt_to_cover.is_zero() {
+            tracing::warn!(?borrower, "Calculated debt to cover is zero");
             return None;
         }
 
-        // 4. Select Best Collateral Candidate to Seize
-        let collateral_candidate = select_collateral_candidate(
+        // 🚨 PREVIOUS SILENT FAILURE POINT 3: select_collateral_candidate
+        let collateral_candidate = match select_collateral_candidate(
             borrower,
             &collateral_positions,
             debt_reserve,
@@ -131,18 +165,39 @@ impl<M: Middleware + 'static> AaveProtocolAdapter<M> {
             client.clone(),
         )
         .await
-        .ok()?;
+        {
+            Ok(cand) => cand,
+            Err(e) => {
+                tracing::error!(?borrower, error = ?e, "Failed selecting collateral candidate");
+                return None;
+            }
+        };
 
-         let (src_decimals, dest_decimals) = tokio::try_join!(
+        // 🚨 PREVIOUS SILENT FAILURE POINT 4: Token Decimals
+        let (src_decimals, dest_decimals) = match tokio::try_join!(
             get_token_decimals(collateral_candidate.asset, client.clone()),
             get_token_decimals(debt_reserve, client.clone())
-        ).ok()?;
+        ) {
+            Ok(decimals) => decimals,
+            Err(e) => {
+                tracing::error!(?borrower, error = ?e, "Failed fetching token decimals");
+                return None;
+            }
+        };
 
         let identity = TrackerIdentity::AaveV3 {
             borrower,
             reserve: debt_reserve,
         }
         .to_string_id();
+
+        tracing::info!(
+            ?borrower,
+            ?debt_reserve,
+            ?debt_to_cover,
+            collateral = ?collateral_candidate.asset,
+            "Successfully constructed BorrowerProfile for candidate"
+        );
 
         Some(BorrowerProfile {
             address: borrower,
