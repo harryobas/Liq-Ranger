@@ -6,7 +6,6 @@ mod constants;
 mod core;
 mod db;
 mod liq_data_extractor;
-mod liquidation_executor;
 mod profit_distributor;
 mod simulation;
 mod watchlist_pruner;
@@ -21,7 +20,8 @@ use adapters::{
 };
 use core::{
     ports::{Bootstrap, LendingProtocolReader},
-    services::{bootstrap_executor::BootstrapExecutor, liquidation_engine::LiquidationEngine},
+    services::{bootstrap_executor::BootstrapExecutor, liquidation_engine::PipelineEngine},
+    types::LiqPayload,
 };
 use std::{fs, path::Path, sync::Arc};
 
@@ -35,9 +35,9 @@ use url::Url;
 
 use crate::common::{
     fetch_contracts, fetch_watchlists, start_aave_watchlist_updater, start_block_watcher,
-    start_liq_data_extractor, start_liquidation_executor, start_morpho_watchlist_updater,
-    start_profit_distributor, start_watchlist_pruner, task_manager::shutdown_all_tasks, AdminCmd,
-    Config,
+    start_liq_data_extractor, start_morpho_watchlist_updater, start_pipeline_engine,
+    start_profit_distributor, start_protocol_scanner, start_watchlist_pruner,
+    task_manager::shutdown_all_tasks, AdminCmd, Config,
 };
 
 pub async fn start_liquidation_engine() -> anyhow::Result<()> {
@@ -139,7 +139,21 @@ pub async fn start_liquidation_engine() -> anyhow::Result<()> {
         flash_liq_contract.clone(),
     ));
 
-    let liq_engine = LiquidationEngine::new(protocol_readers, dex_finder, simulator, liquidator);
+    // --- Pipeline & Scanner Channels ---
+    let (payload_tx, payload_rx) = mpsc::channel::<LiqPayload>(200);
+    let pipeline_engine = Arc::new(PipelineEngine::new(dex_finder, simulator, liquidator));
+
+    start_pipeline_engine(pipeline_engine, payload_rx, shutdown_rx.clone(), 10).await?;
+
+    // --- Protocol Scanner (Candidate Discovery) ---
+    start_protocol_scanner(
+        protocol_readers,
+        payload_tx,
+        http_client.clone(),
+        block_rx.resubscribe(),
+        shutdown_rx.clone(),
+    )
+    .await?;
 
     // --- Spawn Background Services ---
     start_aave_watchlist_updater(
@@ -157,14 +171,6 @@ pub async fn start_liquidation_engine() -> anyhow::Result<()> {
         morpho_config,
         shutdown_rx.clone(),
         morpho_rx,
-    )
-    .await?;
-
-    start_liquidation_executor(
-        liq_engine,
-        http_client.clone(),
-        block_rx.resubscribe(),
-        shutdown_rx.clone(),
     )
     .await?;
 

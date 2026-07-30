@@ -1,9 +1,11 @@
 use ethers::types::{Address, Bytes, H256, U256};
-use std::str::FromStr;
+use std::{str::FromStr, sync::Arc};
 
 use crate::adapters::helpers::morpho_math_helpers::to_assets_up;
 pub use crate::common::abi_bindings::LiquidationParams;
 use crate::constants::{ORACLE_PRICE_SCALE, WAD};
+
+use super::ports::LendingProtocolReader;
 
 pub trait HealthCheck {
     fn is_healthy(&self, market: &Market, lltv: &U256, price: &U256) -> bool;
@@ -60,6 +62,13 @@ pub struct SimulationResult {
     pub success: bool,
     pub gas_used: u64,
     pub revert_reason: Option<String>,
+}
+
+#[derive(Clone)]
+pub struct LiqPayload {
+    pub profile: BorrowerProfile,
+    pub reader: Arc<dyn LendingProtocolReader + Send + Sync>,
+    pub block_number: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

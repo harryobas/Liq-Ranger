@@ -140,6 +140,7 @@ pub static POOL_ADDRESS_PROVIDER: Lazy<Address> =
 pub static AAVE_RESERVES: Lazy<HashSet<Address>> = Lazy::new(|| {
     [
         "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", // USDC
+        "0x2791Bca1f2de4661ED88a30C99A7a9449Aa84174", // Bridged USDC.e (MISSING IN YOUR LOGS
         "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", // USDT
         "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619", // WETH
         "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063", // DAI

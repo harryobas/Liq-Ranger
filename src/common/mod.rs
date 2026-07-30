@@ -1,6 +1,7 @@
 pub mod abi_bindings;
 pub mod task_manager;
 
+
 use std::sync::Arc;
 
 use ethers::{
@@ -14,21 +15,19 @@ use tokio::sync::{
 };
 
 use crate::{
-    constants::{self, TOKEN_DECIMAL_CACHE, TOKEN_SYMBOL_CACHE},
-    watchlist_pruner::WatchListPruner,
-    block_watcher::BlockWatcher,
-    common::{
-        abi_bindings::{
-            AaveOracle, IAaveV3Pool, IFlashLiquidator, IMorphoBlue, IQuoterV2, ISwapRouter,
-            UiPoolDataProvider, IERC20,
-        },
-    },
-    config::{self, AaveConfig},
-    core::services::liquidation_engine::LiquidationEngine,
-    liq_data_extractor::LiqDataExtractor,
-    liquidation_executor::LiqExecutor,
-    profit_distributor::ProfitDistributor,
-    watchlists::{
+    block_watcher::BlockWatcher, common::abi_bindings::{
+            AaveOracle,
+            IAaveV3Pool,
+            IERC20,
+            IFlashLiquidator,
+            IMorphoBlue,
+            IQuoterV2,
+            ISwapRouter,
+            UiPoolDataProvider,
+        }, config::{self, AaveConfig}, constants::{self, TOKEN_DECIMAL_CACHE, TOKEN_SYMBOL_CACHE},
+        core::{ports::LendingProtocolReader,
+        services::{liquidation_engine::PipelineEngine, protocol_scanner::ProtocolScanner},
+        types::LiqPayload}, liq_data_extractor::LiqDataExtractor, profit_distributor::ProfitDistributor, watchlist_pruner::WatchListPruner, watchlists::{
         aave_watchlist::AaveWatchList,
         bootstrap_state::BootstrapState,
         morpho_watchlist::MorphoWatchList,
@@ -224,17 +223,39 @@ where
     Ok(())
 }
 
-pub async fn start_liquidation_executor<M: Middleware + 'static>(
-    engine: LiquidationEngine,
+pub async fn start_protocol_scanner<M: Middleware + 'static>(
+    readers: Vec<Arc<dyn LendingProtocolReader + Send + Sync>>,
+    payload_tx: mpsc::Sender<LiqPayload>,
     client: Arc<M>,
     receiver: Receiver<u64>,
     shutdown: watch::Receiver<bool>,
 ) -> anyhow::Result<()> {
-    let mut executor = LiqExecutor::new(engine, client, receiver, shutdown);
-    task_manager::spawn_named_and_register("liq_executor", async move {
-        if let Err(e) = executor.start().await {
-            tracing::error!("❌ Liquidation executor task failed: {:?}", e);
+    let mut scanner = ProtocolScanner::new(
+        readers,
+        payload_tx,
+        client,
+        receiver,
+        shutdown,
+    );
+
+    task_manager::spawn_named_and_register("protocol_scanner", async move {
+        if let Err(e) = scanner.start().await {
+            tracing::error!("❌ Protocol scanner task failed: {:?}", e);
         }
+    })
+    .await;
+
+    Ok(())
+}
+
+pub async fn start_pipeline_engine(
+    pipeline_engine: Arc<PipelineEngine>,
+    payload_rx: mpsc::Receiver<LiqPayload>,
+    shutdown_rx: watch::Receiver<bool>,
+    concurrency_limit: usize,
+) -> anyhow::Result<()> {
+    task_manager::spawn_named_and_register("pipeline_engine", async move {
+        pipeline_engine.start_pipeline(payload_rx, shutdown_rx, concurrency_limit);
     })
     .await;
 
