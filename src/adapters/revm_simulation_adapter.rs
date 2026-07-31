@@ -208,6 +208,7 @@ where
             )
             .ok_or_else(|| anyhow::anyhow!("Failed to initialize EthersDB for block {}", block_number))?;
 
+            // Instantiate SharedEthersDB via constructor/wrapper trait
             let shared_ethers = SharedEthersDB(Arc::new(RwLock::new(ethers_db)));
             let mut db = CacheDB::new(shared_ethers);
 
@@ -254,8 +255,6 @@ where
         block_number: u64,
         job: &LiquidationJob,
     ) -> anyhow::Result<u64> {
-       // let log_target = "liq_ranger::adapters::revm_simulation_adapter";
-
         // Guard: Self-collateral swap bypass
         if job.collateral_asset == job.debt_asset {
             warn!(

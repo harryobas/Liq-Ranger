@@ -148,6 +148,7 @@ pub static AAVE_RESERVES: Lazy<HashSet<Address>> = Lazy::new(|| {
         "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619", // WETH
         "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063", // DAI
         "0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6", // WBTC
+        "0x53e0bca35ec356bd5dddfebbd1fc0fd03fabad39",
     ]
     .into_iter()
     .map(|s| s.parse::<Address>().expect("invalid reserve address"))
