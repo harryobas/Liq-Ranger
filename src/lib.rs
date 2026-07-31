@@ -141,7 +141,13 @@ pub async fn start_liquidation_engine() -> anyhow::Result<()> {
 
     // --- Pipeline & Scanner Channels ---
     let (payload_tx, payload_rx) = mpsc::channel::<LiqPayload>(200);
-    let pipeline_engine = Arc::new(PipelineEngine::new(dex_finder, simulator, liquidator));
+    let pipeline_engine = Arc::new(PipelineEngine::new(
+        dex_finder,
+        simulator,
+        liquidator,
+        http_client.clone()
+
+    ));
 
     start_pipeline_engine(pipeline_engine, payload_rx, shutdown_rx.clone(), 10).await?;
 

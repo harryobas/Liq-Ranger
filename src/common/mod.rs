@@ -248,8 +248,8 @@ pub async fn start_protocol_scanner<M: Middleware + 'static>(
     Ok(())
 }
 
-pub async fn start_pipeline_engine(
-    pipeline_engine: Arc<PipelineEngine>,
+pub async fn start_pipeline_engine<M: Middleware + 'static>(
+    pipeline_engine: Arc<PipelineEngine<M>>,
     payload_rx: mpsc::Receiver<LiqPayload>,
     shutdown_rx: watch::Receiver<bool>,
     concurrency_limit: usize,

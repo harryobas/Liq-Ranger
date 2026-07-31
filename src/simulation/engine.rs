@@ -3,13 +3,14 @@ use ethers::{
     types::{Address, Bytes as eBytes, U256},
 };
 use revm::{
-    EVM, db::CacheDB, interpreter::gas::constants, primitives::{Bytes, ExecutionResult},
+    db::CacheDB,
+    primitives::{Bytes, ExecutionResult},
+    EVM,
 };
 use std::collections::HashMap;
 
 use super::snapshot::{build_block_env, build_tx_env, BlockSnapshot};
 use crate::core::types::SimulationResult;
-
 
 #[derive(Clone, Debug)]
 pub struct SimulationTx {
@@ -47,14 +48,19 @@ impl SimulationEngine {
         M: Middleware + Send + Sync + 'static,
         <M as Middleware>::Error: 'static,
     {
-        // Issue #1 Fix: Zero-allocation local overlay referencing snapshot.db directly
-        // snapshot.db is Arc<CacheDB<SharedEthersDB<M>>>
+        // Zero-allocation local overlay referencing snapshot.db directly
         let mut local_db = CacheDB::new(snapshot.db.as_ref());
 
         let mut evm = EVM::new();
         evm.database(&mut local_db);
 
+        // 1. Sync CfgEnv chain_id with target chain
+        evm.env.cfg.chain_id = self.chain_id;
+
+        // 2. Set BlockEnv
         evm.env.block = build_block_env(&snapshot.block);
+
+        // 3. Set TxEnv
         evm.env.tx = build_tx_env(
             tx.from,
             tx.to,
@@ -63,6 +69,9 @@ impl SimulationEngine {
             &snapshot.block,
             self.chain_id,
         );
+
+        // Optional Bypass: Set tx.chain_id to None if you want to skip EIP-155 strict checks during dry-runs
+        evm.env.tx.chain_id = None;
 
         let exec_result = evm
             .transact()
