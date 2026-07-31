@@ -1,56 +1,74 @@
 use ethers::{
+    abi::{self, Token},
     providers::Middleware,
     types::{Address, Bytes, U256},
 };
-use futures_util::stream::{self, StreamExt};
 use moka::future::Cache;
 use std::time::Duration;
 use tracing::{debug, error, trace, warn};
 
 use crate::{
     common::abi_bindings::{
-        ExactInputParams, ExactInputSingleParams, IQuoterV2, ISwapRouter,
+        Call3, ExactInputParams, ExactInputSingleParams, IMulticall3, IQuoterV2, ISwapRouter,
         QuoteExactInputSingleParams,
     },
     constants::{self, USDC, USDT, WETH},
     core::{ports::DexRouteFinder, types::MarketQuote},
 };
 
-/// Amount-aware cache key to separate routes by trade size magnitude
+/// Logarithmic scaling bucket to accurately group trade amounts (~10% resolution)
 #[derive(Hash, Eq, PartialEq, Clone, Debug)]
 pub struct CacheKey {
     pub src_token: Address,
     pub dest_token: Address,
-    pub amount_bucket: u32,
+    pub amount_bucket: u64,
 }
 
 impl CacheKey {
     pub fn new(src_token: Address, dest_token: Address, amount: U256) -> Self {
+        if amount.is_zero() {
+            return Self {
+                src_token,
+                dest_token,
+                amount_bucket: 0,
+            };
+        }
+
+        // Zero-allocation order of magnitude + most significant digit calculation
+        let bits = amount.bits() as u64;
+        let approx_magnitude = bits * 301 / 1000; // log10 approximation via bit-shift
+        let scaling_factor = U256::from(10).pow(U256::from(approx_magnitude.saturating_sub(1)));
+        let most_significant = if !scaling_factor.is_zero() {
+            (amount / scaling_factor).as_u64() % 10
+        } else {
+            0
+        };
+
+        let amount_bucket = (approx_magnitude * 10) + most_significant;
+
         Self {
             src_token,
             dest_token,
-            amount_bucket: amount.bits() as u32,
+            amount_bucket,
         }
     }
 }
 
-/// Represents the structure/topology of a Uniswap V3 path
 #[derive(Clone, Debug)]
 pub enum RouteTopology {
     SingleHop { fee: u32 },
     MultiHop { path: Bytes },
 }
 
-const CONCURRENCY_LIMIT: usize = 4;
-
 pub struct UniswapV3Adapter<M: Middleware> {
     pub quoter: IQuoterV2<M>,
     pub router: ISwapRouter<M>,
+    pub multicall: IMulticall3<M>,
     route_cache: Cache<CacheKey, RouteTopology>,
 }
 
-impl<M: Middleware> UniswapV3Adapter<M> {
-    pub fn new(quoter: IQuoterV2<M>, router: ISwapRouter<M>) -> Self {
+impl<M: Middleware + 'static> UniswapV3Adapter<M> {
+    pub fn new(quoter: IQuoterV2<M>, router: ISwapRouter<M>, multicall: IMulticall3<M>) -> Self {
         let route_cache = Cache::builder()
             .time_to_live(Duration::from_secs(3))
             .max_capacity(1_000)
@@ -59,6 +77,7 @@ impl<M: Middleware> UniswapV3Adapter<M> {
         Self {
             quoter,
             router,
+            multicall,
             route_cache,
         }
     }
@@ -72,9 +91,9 @@ impl<M: Middleware> UniswapV3Adapter<M> {
     ) -> (U256, RouteTopology) {
         let cache_key = CacheKey::new(src_token, dest_token, amount);
 
-        // 1. CACHE HIT
+        // 1. CACHE HIT: Re-evaluate known topology directly
         if let Some(topology) = self.route_cache.get(&cache_key).await {
-            debug!("Cache hit for pair {:?} -> {:?}", src_token, dest_token);
+            debug!(target: "liq_ranger", "Cache hit for pair {:?} -> {:?}", src_token, dest_token);
             match &topology {
                 RouteTopology::SingleHop { fee } => {
                     let out = self
@@ -101,23 +120,139 @@ impl<M: Middleware> UniswapV3Adapter<M> {
 
         self.route_cache.invalidate(&cache_key).await;
 
-        // 2. CACHE MISS: Sequentially query single vs multi-hop to prevent RPC connection starvation
-        debug!("Fetching fresh quotes for {:?} -> {:?}, amount: {}", src_token, dest_token, amount);
+        // 2. CACHE MISS: Execute all single + multi-hop candidates in 1 Multicall3 batch
+        debug!(target: "liq_ranger", "Batch querying all routes via Multicall3 for {:?} -> {:?}", src_token, dest_token);
 
-        let (single_out, single_fee) = self.find_best_single_hop(src_token, dest_token, amount).await;
-        let (multi_out, packed_path) = self.find_best_multi_hop(src_token, dest_token, amount, hubs).await;
-
-        let (best_out, best_topology) = if multi_out > single_out {
-            (multi_out, RouteTopology::MultiHop { path: packed_path })
-        } else {
-            (single_out, RouteTopology::SingleHop { fee: single_fee })
-        };
+        let (best_out, best_topology) = self
+            .find_best_route_multicall(src_token, dest_token, amount, hubs)
+            .await;
 
         if !best_out.is_zero() {
             debug!(target: "liq_ranger", "Discovered optimal route out: {} for {:?} -> {:?}", best_out, src_token, dest_token);
             self.route_cache.insert(cache_key, best_topology.clone()).await;
         } else {
             warn!(target: "liq_ranger", "No valid Uniswap V3 path found for {:?} -> {:?}", src_token, dest_token);
+        }
+
+        (best_out, best_topology)
+    }
+
+    async fn find_best_route_multicall(
+        &self,
+        src_token: Address,
+        dest_token: Address,
+        amount: U256,
+        hubs: &[Address],
+    ) -> (U256, RouteTopology) {
+        let single_fee_tiers = [100u32, 500u32, 3000u32, 10000u32];
+        let multihop_fee_tiers = [500u32, 3000u32]; // High-liquidity tiers only for 2-hop
+
+        let valid_hubs: Vec<Address> = hubs
+            .iter()
+            .copied()
+            .filter(|&hub| hub != src_token && hub != dest_token)
+            .collect();
+
+        let mut multicall_calls: Vec<Call3> = Vec::new();
+        let mut route_metadata = Vec::new();
+
+        // A. Build Single-Hop Calls (4 Fee Tiers)
+        for &fee in &single_fee_tiers {
+            let params = QuoteExactInputSingleParams {
+                token_in: src_token,
+                token_out: dest_token,
+                amount_in: amount,
+                fee,
+                sqrt_price_limit_x96: U256::zero(),
+            };
+
+            if let Some(call_data) = self.quoter.quote_exact_input_single(params).calldata() {
+                multicall_calls.push(Call3 {
+                    target: self.quoter.address(),
+                    allow_failure: true,
+                    call_data,
+                });
+                route_metadata.push(RouteMeta::SingleHop { fee });
+            }
+        }
+
+        // B. Build Multi-Hop Calls (Across Intermediate Hub Pairs)
+        for &hub in &valid_hubs {
+            for &fee1 in &multihop_fee_tiers {
+                for &fee2 in &multihop_fee_tiers {
+                    let path = encode_v3_path(&[src_token, hub, dest_token], &[fee1, fee2]);
+                    if let Some(call_data) = self.quoter.quote_exact_input(path.clone(), amount).calldata() {
+                        multicall_calls.push(Call3 {
+                            target: self.quoter.address(),
+                            allow_failure: true,
+                            call_data,
+                        });
+                        route_metadata.push(RouteMeta::MultiHop { path });
+                    }
+                }
+            }
+        }
+
+        if multicall_calls.is_empty() {
+            return (U256::zero(), RouteTopology::SingleHop { fee: 3000 });
+        }
+
+        // C. Send Single RPC Request via Multicall3
+        let aggregate_result = match self.multicall.aggregate_3(multicall_calls).call().await {
+            Ok(res) => res,
+            Err(e) => {
+                error!(target: "liq_ranger", "Multicall3 aggregate_3 failed: {:?}", e);
+                return (U256::zero(), RouteTopology::SingleHop { fee: 3000 });
+            }
+        };
+
+        // D. Parse Batch Responses
+        let mut best_out = U256::zero();
+        let mut best_topology = RouteTopology::SingleHop { fee: 3000 };
+
+        for (i, response) in aggregate_result.into_iter().enumerate() {
+            if !response.success || response.return_data.is_empty() {
+                continue;
+            }
+
+            let is_multihop = matches!(&route_metadata[i], RouteMeta::MultiHop { .. });
+
+            // QuoterV2 return signatures differ between Single-Hop and Multi-Hop:
+            // Single: (uint256, uint160, uint32, uint256)
+            // Multi:  (uint256, uint160[], uint32[], uint256)
+            let decoded_result = if is_multihop {
+                abi::decode(
+                    &[
+                        abi::ParamType::Uint(256),
+                        abi::ParamType::Array(Box::new(abi::ParamType::Uint(160))),
+                        abi::ParamType::Array(Box::new(abi::ParamType::Uint(32))),
+                        abi::ParamType::Uint(256),
+                    ],
+                    &response.return_data,
+                )
+            } else {
+                abi::decode(
+                    &[
+                        abi::ParamType::Uint(256),
+                        abi::ParamType::Uint(160),
+                        abi::ParamType::Uint(32),
+                        abi::ParamType::Uint(256),
+                    ],
+                    &response.return_data,
+                )
+            };
+
+            if let Ok(decoded) = decoded_result {
+                if let Some(Token::Uint(amount_out)) = decoded.get(0) {
+                    if *amount_out > best_out {
+                        best_out = *amount_out;
+                        best_topology = match &route_metadata[i] {
+                            RouteMeta::SingleHop { fee } => RouteTopology::SingleHop { fee: *fee },
+                            RouteMeta::MultiHop { path } => RouteTopology::MultiHop { path: path.clone() },
+                        };
+                    }
+                }
+            }
         }
 
         (best_out, best_topology)
@@ -146,65 +281,11 @@ impl<M: Middleware> UniswapV3Adapter<M> {
             }
         }
     }
+}
 
-    async fn find_best_single_hop(
-        &self,
-        token_in: Address,
-        token_out: Address,
-        amount_in: U256,
-    ) -> (U256, u32) {
-        let fee_tiers = [100u32, 500u32, 3000u32, 10000u32];
-
-        let results = stream::iter(fee_tiers.into_iter().map(|fee| async move {
-            let out = self.quote_single_hop(token_in, token_out, fee, amount_in).await;
-            (fee, out)
-        }))
-        .buffer_unordered(CONCURRENCY_LIMIT)
-        .collect::<Vec<_>>()
-        .await;
-
-        results
-            .into_iter()
-            .max_by_key(|(_, amount_out)| *amount_out)
-            .map(|(fee, amount_out)| (amount_out, fee))
-            .unwrap_or((U256::zero(), 0))
-    }
-
-    pub async fn find_best_multi_hop(
-        &self,
-        token_in: Address,
-        token_out: Address,
-        amount_in: U256,
-        intermediates: &[Address],
-    ) -> (U256, Bytes) {
-        let valid_intermediates: Vec<Address> = intermediates
-            .iter()
-            .copied()
-            .filter(|&intermediate| intermediate != token_in && intermediate != token_out)
-            .collect();
-
-        let mut best_out = U256::zero();
-        let mut best_path = Bytes::default();
-
-        for intermediate in valid_intermediates {
-            let (out_leg1, fee1) = self.find_best_single_hop(token_in, intermediate, amount_in).await;
-            if out_leg1.is_zero() {
-                continue;
-            }
-
-            let (out_leg2, fee2) = self.find_best_single_hop(intermediate, token_out, out_leg1).await;
-            if out_leg2.is_zero() {
-                continue;
-            }
-
-            if out_leg2 > best_out {
-                best_out = out_leg2;
-                best_path = encode_v3_path(&[token_in, intermediate, token_out], &[fee1, fee2]);
-            }
-        }
-
-        (best_out, best_path)
-    }
+enum RouteMeta {
+    SingleHop { fee: u32 },
+    MultiHop { path: Bytes },
 }
 
 #[async_trait::async_trait]
@@ -217,7 +298,7 @@ impl<M: Middleware + 'static> DexRouteFinder for UniswapV3Adapter<M> {
         _dest_decimals: u8,
         amount: U256,
     ) -> anyhow::Result<MarketQuote> {
-        debug!("Requesting swap quote for {:?} -> {:?}, amount {}", src_token, dest_token, amount);
+        debug!(target: "liq_ranger", "Requesting swap quote for {:?} -> {:?}, amount {}", src_token, dest_token, amount);
 
         let hubs = [*WETH, *USDC, *USDT];
 
@@ -266,7 +347,7 @@ impl<M: Middleware + 'static> DexRouteFinder for UniswapV3Adapter<M> {
             }
         };
 
-        debug!( "Quote successfully built! Target: {:?}, Min Out: {}", self.router.address(), min_amt_out);
+        debug!(target: "liq_ranger", "Quote successfully built! Target: {:?}, Min Out: {}", self.router.address(), min_amt_out);
 
         Ok(MarketQuote {
             swap_target: self.router.address(),

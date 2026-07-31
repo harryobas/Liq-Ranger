@@ -132,6 +132,7 @@ pub async fn start_liquidation_engine() -> anyhow::Result<()> {
     let dex_finder = Arc::new(UniswapV3Adapter::new(
         contracts.quoter.clone(),
         contracts.swaper.clone(),
+        contracts.multi_call.clone()
     ));
 
     let simulator = Arc::new(RevmAdapter::new(

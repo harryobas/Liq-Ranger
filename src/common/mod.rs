@@ -24,6 +24,7 @@ use crate::{
             IQuoterV2,
             ISwapRouter,
             UiPoolDataProvider,
+            IMulticall3
         }, config::{self, AaveConfig}, constants::{self, TOKEN_DECIMAL_CACHE, TOKEN_SYMBOL_CACHE},
         core::{ports::LendingProtocolReader,
         services::{liquidation_engine::PipelineEngine, protocol_scanner::ProtocolScanner},
@@ -61,6 +62,7 @@ pub struct CoreContracts<M> {
     pub flash_liq: IFlashLiquidator<M>,
     pub quoter: IQuoterV2<M>,
     pub swaper: ISwapRouter<M>,
+    pub multi_call: IMulticall3<M>
 }
 
 pub struct WatchLists {
@@ -109,6 +111,7 @@ pub fn fetch_contracts<M: Middleware + 'static>(
     let ui_pool_data_addr = *constants::UIPOOL_DATA_PROVIDER;
     let quoter_addr = *constants::UNISWAPV3_QUOTER_V2;
     let swaper_addr = *constants::UNISWAPV3_ROUTER_02;
+    let multi_call_addr = *constants::MULTICALL3_ADDRESS;
 
     let flash_liq = IFlashLiquidator::new(liq_addr, client.clone());
     let aave = IAaveV3Pool::new(aave_addr, client.clone());
@@ -116,7 +119,8 @@ pub fn fetch_contracts<M: Middleware + 'static>(
     let aave_oracle = AaveOracle::new(oracle_addr, client.clone());
     let ui_pool_data_provider = UiPoolDataProvider::new(ui_pool_data_addr, client.clone());
     let quoter = IQuoterV2::new(quoter_addr, client.clone());
-    let swaper = ISwapRouter::new(swaper_addr, client);
+    let swaper = ISwapRouter::new(swaper_addr, client.clone());
+    let multi_call = IMulticall3::new(multi_call_addr, client.clone());
 
     Ok(CoreContracts {
         aave,
@@ -126,6 +130,8 @@ pub fn fetch_contracts<M: Middleware + 'static>(
         ui_pool_data_provider,
         quoter,
         swaper,
+        multi_call
+
     })
 }
 

@@ -58,3 +58,10 @@ abigen!(
     "src/abis/uniswapv3/swap_router.json",
     event_derives(serde::Deserialize, serde::Serialize)
 );
+
+abigen!(
+    IMulticall3,
+    "src/abis/multicall/multicall3.json",
+    event_derives(serde::Deserialize, serde::Serialize)
+
+);
